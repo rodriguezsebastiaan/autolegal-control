@@ -1,0 +1,42 @@
+# Dependencias y compilación
+/node_modules/
+/.next/
+/out/
+/dist/
+/coverage/
+/playwright-report/
+/test-results/
+
+# Variables y secretos (se conserva únicamente la plantilla)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Bases de datos, volcados y archivos privados
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+*.sql.gz
+*.dump
+/storage/
+/uploads/
+/private/
+/backups/
+
+# Registros, sistema e IDE
+*.log
+*.tsbuildinfo
+npm-debug.log*
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Prisma local temporal
+/prisma/dev.db*

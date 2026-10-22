@@ -1,0 +1,562 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum OrganizationMode {
+  PRODUCTION
+  DEMO
+}
+
+enum RoleCode {
+  ADMIN
+  SUPERVISOR
+  DOCUMENT_MANAGER
+  VIEWER
+}
+
+enum VehicleStatus {
+  ACTIVE
+  INACTIVE
+  MAINTENANCE
+  SUSPENDED
+}
+
+enum PersonType {
+  NATURAL
+  LEGAL
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum DocumentProcessStatus {
+  NONE
+  PENDING
+  CONTACTED
+  IN_PROGRESS
+  WAITING_DOCUMENTS
+  PENDING_VALIDATION
+  COMPLETED
+  CANCELLED
+}
+
+enum AlertEventStatus {
+  OPEN
+  REVIEWED
+  RESOLVED
+  CANCELLED
+}
+
+enum NotificationChannel {
+  INTERNAL
+  EMAIL
+}
+
+enum DeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+  DISABLED
+  CANCELLED
+}
+
+enum RenewalStatus {
+  PENDING
+  OWNER_CONTACTED
+  IN_PROGRESS
+  WAITING_DOCUMENTS
+  PENDING_VALIDATION
+  COMPLETED
+  CANCELLED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model Organization {
+  id                   String                @id @default(cuid())
+  name                 String
+  mode                 OrganizationMode      @default(PRODUCTION)
+  timezone             String                @default("America/Bogota")
+  createdAt            DateTime              @default(now()) @map("created_at")
+  updatedAt            DateTime              @updatedAt @map("updated_at")
+  users                User[]
+  categories           VehicleCategory[]
+  owners               Owner[]
+  companies            TransportCompany[]
+  drivers              Driver[]
+  vehicles             Vehicle[]
+  documentTypes        DocumentType[]
+  documentRequirements DocumentRequirement[]
+  documents            Document[]
+  alertRules           AlertRule[]
+  alertEvents          AlertEvent[]
+  renewalTasks         RenewalTask[]
+  auditLogs            AuditLog[]
+
+  @@map("organizations")
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  code        RoleCode @unique
+  name        String
+  description String?
+  users       User[]
+
+  @@map("roles")
+}
+
+model User {
+  id             String           @id @default(cuid())
+  organizationId String           @map("organization_id")
+  roleId         String           @map("role_id")
+  email          String
+  name           String
+  passwordHash   String           @map("password_hash")
+  active         Boolean          @default(true)
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  role           Role             @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  sessions       Session[]
+  assignedDocs   Document[]       @relation("DocumentResponsible")
+  assignedAlerts AlertEvent[]     @relation("AlertResponsible")
+  assignedTasks  RenewalTask[]    @relation("RenewalResponsible")
+  closedTasks    RenewalTask[]    @relation("RenewalClosedBy")
+  comments       RenewalComment[]
+  auditLogs      AuditLog[]
+
+  @@unique([organizationId, email])
+  @@index([organizationId, active])
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  tokenHash String   @unique @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("sessions")
+}
+
+model VehicleCategory {
+  id             String                @id @default(cuid())
+  organizationId String                @map("organization_id")
+  name           String
+  description    String?
+  active         Boolean               @default(true)
+  createdAt      DateTime              @default(now()) @map("created_at")
+  updatedAt      DateTime              @updatedAt @map("updated_at")
+  organization   Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  vehicles       Vehicle[]
+  requirements   DocumentRequirement[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId, active])
+  @@map("vehicle_categories")
+}
+
+model Owner {
+  id                   String         @id @default(cuid())
+  organizationId       String         @map("organization_id")
+  personType           PersonType     @map("person_type")
+  identificationType   String         @map("identification_type")
+  identificationNumber String         @map("identification_number")
+  displayName          String         @map("display_name")
+  phone                String?
+  email                String?
+  address              String?
+  city                 String?
+  notes                String?
+  active               Boolean        @default(true)
+  createdAt            DateTime       @default(now()) @map("created_at")
+  updatedAt            DateTime       @updatedAt @map("updated_at")
+  organization         Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  vehicles             VehicleOwner[]
+  documents            Document[]
+
+  @@unique([organizationId, identificationNumber])
+  @@index([organizationId, displayName])
+  @@map("owners")
+}
+
+model TransportCompany {
+  id             String               @id @default(cuid())
+  organizationId String               @map("organization_id")
+  nit            String
+  businessName   String               @map("business_name")
+  address        String?
+  contactName    String?              @map("contact_name")
+  phone          String?
+  email          String?
+  modality       String?
+  active         Boolean              @default(true)
+  createdAt      DateTime             @default(now()) @map("created_at")
+  updatedAt      DateTime             @updatedAt @map("updated_at")
+  organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  affiliations   VehicleAffiliation[]
+  documents      Document[]
+
+  @@unique([organizationId, nit])
+  @@index([organizationId, businessName])
+  @@map("transport_companies")
+}
+
+model Driver {
+  id                   String          @id @default(cuid())
+  organizationId       String          @map("organization_id")
+  identificationType   String          @map("identification_type")
+  identificationNumber String          @map("identification_number")
+  fullName             String          @map("full_name")
+  phone                String?
+  email                String?
+  licenseNumber        String?         @map("license_number")
+  licenseCategory      String?         @map("license_category")
+  licenseExpiresAt     DateTime?       @map("license_expires_at") @db.Date
+  active               Boolean         @default(true)
+  createdAt            DateTime        @default(now()) @map("created_at")
+  updatedAt            DateTime        @updatedAt @map("updated_at")
+  organization         Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  vehicles             VehicleDriver[]
+  documents            Document[]
+
+  @@unique([organizationId, identificationNumber])
+  @@index([organizationId, fullName])
+  @@map("drivers")
+}
+
+model Vehicle {
+  id                  String               @id @default(cuid())
+  organizationId      String               @map("organization_id")
+  categoryId          String               @map("category_id")
+  plate               String
+  internalNumber      String?              @map("internal_number")
+  vehicleClass        String?              @map("vehicle_class")
+  brand               String
+  line                String
+  model               String?
+  year                Int?
+  color               String?
+  vin                 String?
+  chassisNumber       String?              @map("chassis_number")
+  engineNumber        String?              @map("engine_number")
+  fuelType            String?              @map("fuel_type")
+  passengerCapacity   Int?                 @map("passenger_capacity")
+  engineDisplacement  Int?                 @map("engine_displacement")
+  registrationDate    DateTime?            @map("registration_date") @db.Date
+  transitAuthority    String?              @map("transit_authority")
+  serviceType         String?              @map("service_type")
+  transportModality   String?              @map("transport_modality")
+  operationRadius     String?              @map("operation_radius")
+  affiliationContract String?              @map("affiliation_contract")
+  affiliationDate     DateTime?            @map("affiliation_date") @db.Date
+  status              VehicleStatus        @default(ACTIVE)
+  responsibleName     String?              @map("responsible_name")
+  notes               String?
+  createdAt           DateTime             @default(now()) @map("created_at")
+  updatedAt           DateTime             @updatedAt @map("updated_at")
+  organization        Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  category            VehicleCategory      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  owners              VehicleOwner[]
+  affiliations        VehicleAffiliation[]
+  drivers             VehicleDriver[]
+  documents           Document[]
+  renewalTasks        RenewalTask[]
+
+  @@index([organizationId, plate])
+  @@index([organizationId, categoryId, status])
+  @@index([organizationId, status])
+  @@map("vehicles")
+}
+
+model VehicleOwner {
+  id        String    @id @default(cuid())
+  vehicleId String    @map("vehicle_id")
+  ownerId   String    @map("owner_id")
+  startsAt  DateTime  @map("starts_at") @db.Date
+  endsAt    DateTime? @map("ends_at") @db.Date
+  isCurrent Boolean   @default(true) @map("is_current")
+  createdAt DateTime  @default(now()) @map("created_at")
+  vehicle   Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  owner     Owner     @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+
+  @@index([vehicleId, isCurrent])
+  @@index([ownerId, isCurrent])
+  @@map("vehicle_owners")
+}
+
+model VehicleAffiliation {
+  id        String           @id @default(cuid())
+  vehicleId String           @map("vehicle_id")
+  companyId String           @map("company_id")
+  startsAt  DateTime         @map("starts_at") @db.Date
+  endsAt    DateTime?        @map("ends_at") @db.Date
+  isCurrent Boolean          @default(true) @map("is_current")
+  createdAt DateTime         @default(now()) @map("created_at")
+  vehicle   Vehicle          @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  company   TransportCompany @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([vehicleId, isCurrent])
+  @@index([companyId, isCurrent])
+  @@map("vehicle_affiliations")
+}
+
+model VehicleDriver {
+  id        String    @id @default(cuid())
+  vehicleId String    @map("vehicle_id")
+  driverId  String    @map("driver_id")
+  startsAt  DateTime  @map("starts_at") @db.Date
+  endsAt    DateTime? @map("ends_at") @db.Date
+  isCurrent Boolean   @default(true) @map("is_current")
+  createdAt DateTime  @default(now()) @map("created_at")
+  vehicle   Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  driver    Driver    @relation(fields: [driverId], references: [id], onDelete: Restrict)
+
+  @@index([vehicleId, isCurrent])
+  @@index([driverId, isCurrent])
+  @@map("vehicle_drivers")
+}
+
+model DocumentType {
+  id                  String                @id @default(cuid())
+  organizationId      String                @map("organization_id")
+  name                String
+  code                String
+  description         String?
+  hasExpiration       Boolean               @default(true) @map("has_expiration")
+  defaultAlertDays    Int[]                 @default([60, 30, 20, 17, 10, 5, 3, 1, 0]) @map("default_alert_days")
+  requiresLegalReview Boolean               @default(false) @map("requires_legal_review")
+  active              Boolean               @default(true)
+  createdAt           DateTime              @default(now()) @map("created_at")
+  updatedAt           DateTime              @updatedAt @map("updated_at")
+  organization        Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  requirements        DocumentRequirement[]
+  documents           Document[]
+  alertRules          AlertRule[]
+
+  @@unique([organizationId, code])
+  @@unique([organizationId, name])
+  @@index([organizationId, active])
+  @@map("document_types")
+}
+
+model DocumentRequirement {
+  id                String           @id @default(cuid())
+  organizationId    String           @map("organization_id")
+  documentTypeId    String           @map("document_type_id")
+  categoryId        String?          @map("category_id")
+  vehicleClass      String?          @map("vehicle_class")
+  serviceType       String?          @map("service_type")
+  transportModality String?          @map("transport_modality")
+  applicable        Boolean          @default(true)
+  verified          Boolean          @default(false)
+  notes             String?
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+  organization      Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  documentType      DocumentType     @relation(fields: [documentTypeId], references: [id], onDelete: Cascade)
+  category          VehicleCategory? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, documentTypeId])
+  @@index([categoryId])
+  @@map("document_requirements")
+}
+
+model Document {
+  id                 String                @id @default(cuid())
+  organizationId     String                @map("organization_id")
+  documentTypeId     String                @map("document_type_id")
+  vehicleId          String?               @map("vehicle_id")
+  ownerId            String?               @map("owner_id")
+  companyId          String?               @map("company_id")
+  driverId           String?               @map("driver_id")
+  responsibleUserId  String?               @map("responsible_user_id")
+  number             String?
+  issuer             String?
+  issuedAt           DateTime?             @map("issued_at") @db.Date
+  validFrom          DateTime?             @map("valid_from") @db.Date
+  expiresAt          DateTime?             @map("expires_at") @db.Date
+  paymentDueAt       DateTime?             @map("payment_due_at") @db.Date
+  verificationStatus VerificationStatus    @default(PENDING) @map("verification_status")
+  processStatus      DocumentProcessStatus @default(NONE) @map("process_status")
+  verifiedAt         DateTime?             @map("verified_at")
+  fileKey            String?               @map("file_key")
+  originalFileName   String?               @map("original_file_name")
+  notes              String?
+  createdAt          DateTime              @default(now()) @map("created_at")
+  updatedAt          DateTime              @updatedAt @map("updated_at")
+  organization       Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  documentType       DocumentType          @relation(fields: [documentTypeId], references: [id], onDelete: Restrict)
+  vehicle            Vehicle?              @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  owner              Owner?                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  company            TransportCompany?     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  driver             Driver?               @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  responsible        User?                 @relation("DocumentResponsible", fields: [responsibleUserId], references: [id], onDelete: SetNull)
+  versions           DocumentVersion[]
+  alertEvents        AlertEvent[]
+  renewalTasks       RenewalTask[]
+
+  @@index([organizationId, expiresAt])
+  @@index([vehicleId, documentTypeId])
+  @@index([verificationStatus, expiresAt])
+  @@map("documents")
+}
+
+model DocumentVersion {
+  id                 String             @id @default(cuid())
+  documentId         String             @map("document_id")
+  version            Int
+  number             String?
+  issuer             String?
+  issuedAt           DateTime?          @map("issued_at") @db.Date
+  validFrom          DateTime?          @map("valid_from") @db.Date
+  expiresAt          DateTime?          @map("expires_at") @db.Date
+  verificationStatus VerificationStatus @map("verification_status")
+  fileKey            String?            @map("file_key")
+  originalFileName   String?            @map("original_file_name")
+  notes              String?
+  createdById        String?            @map("created_by_id")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  document           Document           @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, version])
+  @@index([documentId, createdAt])
+  @@map("document_versions")
+}
+
+model AlertRule {
+  id             String              @id @default(cuid())
+  organizationId String              @map("organization_id")
+  documentTypeId String              @map("document_type_id")
+  companyId      String?             @map("company_id")
+  vehicleId      String?             @map("vehicle_id")
+  advanceDays    Int                 @map("advance_days")
+  channel        NotificationChannel @default(INTERNAL)
+  active         Boolean             @default(true)
+  escalation     Boolean             @default(false)
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  documentType   DocumentType        @relation(fields: [documentTypeId], references: [id], onDelete: Cascade)
+  events         AlertEvent[]
+
+  @@unique([organizationId, documentTypeId, companyId, vehicleId, advanceDays, channel])
+  @@index([organizationId, active])
+  @@map("alert_rules")
+}
+
+model AlertEvent {
+  id                String                 @id @default(cuid())
+  organizationId    String                 @map("organization_id")
+  documentId        String                 @map("document_id")
+  alertRuleId       String                 @map("alert_rule_id")
+  responsibleUserId String?                @map("responsible_user_id")
+  triggerDate       DateTime               @map("trigger_date") @db.Date
+  status            AlertEventStatus       @default(OPEN)
+  reviewedAt        DateTime?              @map("reviewed_at")
+  resolvedAt        DateTime?              @map("resolved_at")
+  createdAt         DateTime               @default(now()) @map("created_at")
+  updatedAt         DateTime               @updatedAt @map("updated_at")
+  organization      Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  document          Document               @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  alertRule         AlertRule              @relation(fields: [alertRuleId], references: [id], onDelete: Cascade)
+  responsible       User?                  @relation("AlertResponsible", fields: [responsibleUserId], references: [id], onDelete: SetNull)
+  deliveries        NotificationDelivery[]
+
+  @@unique([documentId, alertRuleId, triggerDate])
+  @@index([organizationId, status, triggerDate])
+  @@map("alert_events")
+}
+
+model NotificationDelivery {
+  id           String              @id @default(cuid())
+  alertEventId String              @map("alert_event_id")
+  recipient    String
+  channel      NotificationChannel
+  status       DeliveryStatus      @default(PENDING)
+  attempt      Int                 @default(1)
+  providerRef  String?             @map("provider_ref")
+  errorMessage String?             @map("error_message")
+  attemptedAt  DateTime?           @map("attempted_at")
+  createdAt    DateTime            @default(now()) @map("created_at")
+  alertEvent   AlertEvent          @relation(fields: [alertEventId], references: [id], onDelete: Cascade)
+
+  @@unique([alertEventId, recipient, channel, attempt])
+  @@index([status, createdAt])
+  @@map("notification_deliveries")
+}
+
+model RenewalTask {
+  id                String           @id @default(cuid())
+  organizationId    String           @map("organization_id")
+  vehicleId         String           @map("vehicle_id")
+  documentId        String           @map("document_id")
+  responsibleUserId String           @map("responsible_user_id")
+  closedByUserId    String?          @map("closed_by_user_id")
+  openedAt          DateTime         @default(now()) @map("opened_at")
+  nextActionAt      DateTime?        @map("next_action_at")
+  priority          Priority         @default(MEDIUM)
+  status            RenewalStatus    @default(PENDING)
+  notes             String?
+  closedAt          DateTime?        @map("closed_at")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+  organization      Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  vehicle           Vehicle          @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  document          Document         @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  responsible       User             @relation("RenewalResponsible", fields: [responsibleUserId], references: [id], onDelete: Restrict)
+  closedBy          User?            @relation("RenewalClosedBy", fields: [closedByUserId], references: [id], onDelete: SetNull)
+  comments          RenewalComment[]
+
+  @@index([organizationId, status, nextActionAt])
+  @@index([responsibleUserId, status])
+  @@map("renewal_tasks")
+}
+
+model RenewalComment {
+  id            String      @id @default(cuid())
+  renewalTaskId String      @map("renewal_task_id")
+  userId        String      @map("user_id")
+  body          String
+  createdAt     DateTime    @default(now()) @map("created_at")
+  renewalTask   RenewalTask @relation(fields: [renewalTaskId], references: [id], onDelete: Cascade)
+  user          User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([renewalTaskId, createdAt])
+  @@map("renewal_comments")
+}
+
+model AuditLog {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  userId         String?      @map("user_id")
+  action         String
+  entityType     String       @map("entity_type")
+  entityId       String?      @map("entity_id")
+  metadata       Json?
+  ipAddress      String?      @map("ip_address")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
