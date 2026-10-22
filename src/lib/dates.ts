@@ -6,8 +6,61 @@ export type DocumentValidity =
   | "SIN_INFORMACION"
   | "PENDIENTE_VERIFICACION";
 
+const CIVIL_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+
 function utcDay(year: number, month: number, day: number) {
   return Date.UTC(year, month - 1, day) / 86_400_000;
+}
+
+function civilDateParts(value: string) {
+  const match = CIVIL_DATE_PATTERN.exec(value);
+  if (!match) return null;
+  const [, yearText, monthText, dayText] = match;
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  const candidate = new Date(Date.UTC(year, month - 1, day));
+  if (
+    candidate.getUTCFullYear() !== year ||
+    candidate.getUTCMonth() !== month - 1 ||
+    candidate.getUTCDate() !== day
+  ) return null;
+  return { year, month, day };
+}
+
+/** Devuelve la fecha civil YYYY-MM-DD sin convertirla a una zona horaria. */
+export function dateKey(value: Date | string) {
+  if (typeof value === "string") {
+    const key = value.slice(0, 10);
+    if (!civilDateParts(key)) throw new RangeError(`Fecha civil inválida: ${value}`);
+    return key;
+  }
+  if (Number.isNaN(value.getTime())) throw new RangeError("Fecha inválida");
+  return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, "0")}-${String(value.getUTCDate()).padStart(2, "0")}`;
+}
+
+/** Convierte una fecha civil para Prisma @db.Date preservando exactamente su día. */
+export function parseCivilDate(value?: string | null) {
+  if (!value) return undefined;
+  const key = dateKey(value);
+  const parts = civilDateParts(key)!;
+  return new Date(Date.UTC(parts.year, parts.month - 1, parts.day));
+}
+
+export function isCivilDate(value: string) {
+  return civilDateParts(value) !== null;
+}
+
+export function formatCivilDate(value: Date | string | null | undefined) {
+  if (!value) return "—";
+  const [year, month, day] = dateKey(value).split("-");
+  return `${day}/${month}/${year}`;
+}
+
+export function addCivilDays(value: Date | string, days: number) {
+  const date = parseCivilDate(dateKey(value))!;
+  date.setUTCDate(date.getUTCDate() + days);
+  return date;
 }
 
 export function bogotaToday(now = new Date()) {
@@ -19,11 +72,6 @@ export function bogotaToday(now = new Date()) {
   }).formatToParts(now);
   const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   return `${value.year}-${value.month}-${value.day}`;
-}
-
-export function dateKey(value: Date | string) {
-  if (typeof value === "string") return value.slice(0, 10);
-  return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, "0")}-${String(value.getUTCDate()).padStart(2, "0")}`;
 }
 
 export function daysUntil(expiration: Date | string, today = bogotaToday()) {

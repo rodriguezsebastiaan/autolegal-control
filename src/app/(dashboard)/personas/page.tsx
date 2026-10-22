@@ -8,8 +8,8 @@ import { PageHeader, StatusBadge } from "@/components/ui";
 export default async function PeoplePage() {
   const user = await requireUser();
   const [owners, companies, drivers] = await Promise.all([
-    db.owner.findMany({ where: { organizationId: user.organizationId }, include: { _count: { select: { vehicles: { where: { isCurrent: true } } } } }, orderBy: { displayName: "asc" } }),
-    db.transportCompany.findMany({ where: { organizationId: user.organizationId }, include: { _count: { select: { affiliations: { where: { isCurrent: true } } } } }, orderBy: { businessName: "asc" } }),
+    db.owner.findMany({ where: { organizationId: user.organizationId }, include: { _count: { select: { vehicles: { where: { isCurrent: true, vehicle: { organizationId: user.organizationId } } } } } }, orderBy: { displayName: "asc" } }),
+    db.transportCompany.findMany({ where: { organizationId: user.organizationId }, include: { _count: { select: { affiliations: { where: { isCurrent: true, vehicle: { organizationId: user.organizationId } } } } } }, orderBy: { businessName: "asc" } }),
     db.driver.findMany({ where: { organizationId: user.organizationId }, orderBy: { fullName: "asc" } }),
   ]);
   return <><PageHeader eyebrow="Directorio" title="Personas y empresas" description="Datos normalizados para propietarios, transportadoras y conductores." />

@@ -58,7 +58,7 @@ El avance detallado y las siguientes fases están en [docs/ESTADO.md](docs/ESTAD
    npm run dev
    ```
 
-6. Abre `http://localhost:3000`. El usuario es el configurado en `ADMIN_EMAIL` y la contraseña es `ADMIN_INITIAL_PASSWORD`.
+6. Abre `http://localhost:3000`. Ingresa el código configurado en `ADMIN_ORGANIZATION_CODE`, el usuario de `ADMIN_EMAIL` y la contraseña de `ADMIN_INITIAL_PASSWORD`.
 
 ## Base de datos
 

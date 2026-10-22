@@ -13,8 +13,8 @@ export default async function DashboardPage() {
     db.vehicle.findMany({ where: { organizationId }, select: { id: true, status: true } }),
     db.document.findMany({ where: { organizationId }, select: { expiresAt: true, verificationStatus: true } }),
     db.renewalTask.groupBy({ by: ["status"], where: { organizationId }, _count: true }),
-    db.alertEvent.findMany({ where: { organizationId, status: "OPEN" }, orderBy: { triggerDate: "desc" }, take: 8, include: { document: { include: { documentType: true, vehicle: { include: { owners: { where: { isCurrent: true }, take: 1, include: { owner: true } } } } } }, responsible: true } }),
-    db.vehicleCategory.findMany({ where: { organizationId }, include: { _count: { select: { vehicles: true } } }, orderBy: { name: "asc" } }),
+    db.alertEvent.findMany({ where: { organizationId, status: "OPEN", document: { organizationId }, alertRule: { organizationId } }, orderBy: { triggerDate: "desc" }, take: 8, include: { document: { include: { documentType: true, vehicle: { include: { owners: { where: { isCurrent: true, owner: { organizationId } }, take: 1, include: { owner: true } } } } } }, responsible: true } }),
+    db.vehicleCategory.findMany({ where: { organizationId }, include: { _count: { select: { vehicles: { where: { organizationId } } } } }, orderBy: { name: "asc" } }),
   ]);
   const states = documents.map((doc) => documentValidity(doc));
   const count = (status: string) => states.filter((item) => item.status === status).length;

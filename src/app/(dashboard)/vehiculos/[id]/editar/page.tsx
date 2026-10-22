@@ -8,7 +8,7 @@ import { VehicleForm } from "@/components/vehicle-form";
 export default async function EditVehiclePage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser(); const { id } = await params;
   const [vehicle, categories, owners, companies] = await Promise.all([
-    db.vehicle.findFirst({ where: { id, organizationId: user.organizationId }, include: { owners: { where: { isCurrent: true }, take: 1 }, affiliations: { where: { isCurrent: true }, take: 1 } } }),
+    db.vehicle.findFirst({ where: { id, organizationId: user.organizationId, category: { organizationId: user.organizationId } }, include: { owners: { where: { isCurrent: true, owner: { organizationId: user.organizationId } }, take: 1 }, affiliations: { where: { isCurrent: true, company: { organizationId: user.organizationId } }, take: 1 } } }),
     db.vehicleCategory.findMany({ where: { organizationId: user.organizationId, active: true }, orderBy: { name: "asc" } }),
     db.owner.findMany({ where: { organizationId: user.organizationId, active: true }, orderBy: { displayName: "asc" } }),
     db.transportCompany.findMany({ where: { organizationId: user.organizationId, active: true }, orderBy: { businessName: "asc" } }),

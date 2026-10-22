@@ -1,5 +1,6 @@
 import { hash } from "bcryptjs";
 import { PrismaClient, RoleCode } from "@prisma/client";
+import { addCivilDays, bogotaToday, parseCivilDate } from "../src/lib/dates";
 
 const prisma = new PrismaClient();
 const categoryNames = ["Busetas urbanas", "Busetas gerencia", "Camperos", "Kias", "Taxis", "Buses intermunicipales"];
@@ -26,8 +27,13 @@ async function main() {
   for (const [code, data] of Object.entries(roleData) as [RoleCode, (typeof roleData)[RoleCode]][]) {
     const role = await prisma.role.upsert({ where: { code }, update: data, create: { code, ...data } }); roles.set(code, role.id);
   }
-  let organization = await prisma.organization.findFirst({ where: { name: "Autolegal · Demostración", mode: "DEMO" } });
-  organization ??= await prisma.organization.create({ data: { name: "Autolegal · Demostración", mode: "DEMO" } });
+  const organizationCode = (process.env.ADMIN_ORGANIZATION_CODE || "autolegal-demo").trim().toLowerCase();
+  if (!/^[a-z0-9](?:[a-z0-9-]{1,48}[a-z0-9])?$/.test(organizationCode)) throw new Error("ADMIN_ORGANIZATION_CODE debe contener letras minúsculas, números o guiones.");
+  const organization = await prisma.organization.upsert({
+    where: { loginCode: organizationCode },
+    update: { name: "Autolegal · Demostración", mode: "DEMO" },
+    create: { loginCode: organizationCode, name: "Autolegal · Demostración", mode: "DEMO" },
+  });
   const email = (process.env.ADMIN_EMAIL || "admin@autolegal.local").toLowerCase();
   const admin = await prisma.user.upsert({ where: { organizationId_email: { organizationId: organization.id, email } }, update: { name: "Administrador Autolegal", passwordHash: await hash(password, 12), roleId: roles.get("ADMIN")! }, create: { organizationId: organization.id, email, name: "Administrador Autolegal", passwordHash: await hash(password, 12), roleId: roles.get("ADMIN")! } });
   const categories = [];
@@ -45,17 +51,17 @@ async function main() {
     let vehicle = await prisma.vehicle.findFirst({ where: { organizationId: organization.id, plate: plates[index] } });
     if (!vehicle) {
       vehicle = await prisma.vehicle.create({ data: { organizationId: organization.id, categoryId: categories[index].id, plate: plates[index], brand: index === 3 ? "Kia" : "Marca demostración", line: `Línea ${index + 1}`, model: "Demo", year: 2024, responsibleName: admin.name, notes: "Vehículo ficticio. No corresponde a información real." } });
-      await prisma.vehicleOwner.create({ data: { vehicleId: vehicle.id, ownerId: owner.id, startsAt: new Date("2026-01-01T00:00:00.000Z") } });
-      await prisma.vehicleAffiliation.create({ data: { vehicleId: vehicle.id, companyId: company.id, startsAt: new Date("2026-01-01T00:00:00.000Z") } });
+      await prisma.vehicleOwner.create({ data: { vehicleId: vehicle.id, ownerId: owner.id, startsAt: parseCivilDate("2026-01-01")! } });
+      await prisma.vehicleAffiliation.create({ data: { vehicleId: vehicle.id, companyId: company.id, startsAt: parseCivilDate("2026-01-01")! } });
     }
     const existingDoc = await prisma.document.findFirst({ where: { vehicleId: vehicle.id, documentTypeId: types[0].id } });
     if (!existingDoc) {
-      const expires = new Date(); expires.setUTCDate(expires.getUTCDate() + [60, 30, 17, 5, 1, -3][index]);
-      const document = await prisma.document.create({ data: { organizationId: organization.id, vehicleId: vehicle.id, documentTypeId: types[0].id, responsibleUserId: admin.id, number: `DEMO-SOAT-${index + 1}`, issuer: "Aseguradora ficticia", issuedAt: new Date("2026-01-01T00:00:00.000Z"), validFrom: new Date("2026-01-01T00:00:00.000Z"), expiresAt: expires, verificationStatus: "VERIFIED", verifiedAt: new Date(), notes: "Documento ficticio para demostración." } });
+      const expires = addCivilDays(bogotaToday(), [60, 30, 17, 5, 1, -3][index]);
+      const document = await prisma.document.create({ data: { organizationId: organization.id, vehicleId: vehicle.id, documentTypeId: types[0].id, responsibleUserId: admin.id, number: `DEMO-SOAT-${index + 1}`, issuer: "Aseguradora ficticia", issuedAt: parseCivilDate("2026-01-01"), validFrom: parseCivilDate("2026-01-01"), expiresAt: expires, verificationStatus: "VERIFIED", verifiedAt: new Date(), notes: "Documento ficticio para demostración." } });
       await prisma.documentVersion.create({ data: { documentId: document.id, version: 1, number: document.number, issuer: document.issuer, issuedAt: document.issuedAt, validFrom: document.validFrom, expiresAt: document.expiresAt, verificationStatus: document.verificationStatus, notes: document.notes, createdById: admin.id } });
     }
   }
-  console.log(`Datos demo creados. Usuario: ${email}`);
+  console.log(`Datos demo creados. Organización: ${organizationCode}. Usuario: ${email}`);
 }
 
 main().finally(() => prisma.$disconnect());

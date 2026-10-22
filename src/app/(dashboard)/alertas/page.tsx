@@ -10,8 +10,8 @@ import { EmptyState, PageHeader, StatusBadge } from "@/components/ui";
 export default async function AlertsPage() {
   const user = await requireUser();
   const [alerts, rules] = await Promise.all([
-    db.alertEvent.findMany({ where: { organizationId: user.organizationId }, orderBy: [{ status: "asc" }, { triggerDate: "desc" }], include: { document: { include: { vehicle: true, documentType: true } }, responsible: true, deliveries: true, alertRule: true } }),
-    db.alertRule.findMany({ where: { organizationId: user.organizationId, active: true }, include: { documentType: true }, orderBy: [{ documentType: { name: "asc" } }, { advanceDays: "desc" }] }),
+    db.alertEvent.findMany({ where: { organizationId: user.organizationId, document: { organizationId: user.organizationId }, alertRule: { organizationId: user.organizationId } }, orderBy: [{ status: "asc" }, { triggerDate: "desc" }], include: { document: { include: { vehicle: true, documentType: true } }, responsible: true, deliveries: true, alertRule: true } }),
+    db.alertRule.findMany({ where: { organizationId: user.organizationId, active: true, documentType: { organizationId: user.organizationId } }, include: { documentType: true }, orderBy: [{ documentType: { name: "asc" } }, { advanceDays: "desc" }] }),
   ]);
   return <><PageHeader eyebrow="Automatización" title="Centro de alertas" description="Eventos internos reales generados por las reglas de anticipación. Los canales externos permanecen desactivados." />
     <div className="mb-5 grid gap-4 md:grid-cols-3"><div className="card flex items-center gap-4 p-4"><BellRing className="text-amber-600"/><div><p className="text-2xl font-bold">{alerts.filter((x) => x.status === "OPEN").length}</p><p className="text-xs text-slate-500">Alertas abiertas</p></div></div><div className="card flex items-center gap-4 p-4"><MailWarning className="text-slate-500"/><div><p className="text-sm font-bold">Integración pendiente</p><p className="text-xs text-slate-500">Correo externo desactivado</p></div></div><div className="card p-4"><p className="text-2xl font-bold">{rules.length}</p><p className="text-xs text-slate-500">Reglas activas</p></div></div>

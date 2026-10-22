@@ -88,6 +88,7 @@ enum Priority {
 model Organization {
   id                   String                @id @default(cuid())
   name                 String
+  loginCode            String                @unique @map("login_code")
   mode                 OrganizationMode      @default(PRODUCTION)
   timezone             String                @default("America/Bogota")
   createdAt            DateTime              @default(now()) @map("created_at")

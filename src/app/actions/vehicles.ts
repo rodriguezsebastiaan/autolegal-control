@@ -6,11 +6,12 @@ import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { db } from "@/lib/db";
+import { bogotaToday, parseCivilDate } from "@/lib/dates";
+import { isTenantRecord, tenantRecordWhere, validateVehicleReferences } from "@/lib/tenancy";
 import { vehicleSchema } from "@/lib/validations";
 
 export type FormState = { error?: string; fieldErrors?: Record<string, string[]> };
 const editors: RoleCode[] = ["ADMIN", "SUPERVISOR", "DOCUMENT_MANAGER"];
-const toDate = (value?: string) => value ? new Date(`${value}T00:00:00.000Z`) : undefined;
 const optionalNumber = (value: number | "" | undefined) => value === "" ? undefined : value;
 
 function friendlyPrismaError(error: unknown) {
@@ -24,14 +25,13 @@ export async function createVehicleAction(_: FormState, formData: FormData): Pro
   if (!parsed.success) return { error: "Revisa los campos señalados.", fieldErrors: parsed.error.flatten().fieldErrors };
   const data = parsed.data;
   const [category, owner, company, duplicate] = await Promise.all([
-    db.vehicleCategory.findFirst({ where: { id: data.categoryId, organizationId: user.organizationId, active: true } }),
-    data.ownerId ? db.owner.findFirst({ where: { id: data.ownerId, organizationId: user.organizationId, active: true } }) : null,
-    data.companyId ? db.transportCompany.findFirst({ where: { id: data.companyId, organizationId: user.organizationId, active: true } }) : null,
+    db.vehicleCategory.findFirst({ where: { ...tenantRecordWhere(user.organizationId, data.categoryId), active: true } }),
+    data.ownerId ? db.owner.findFirst({ where: { ...tenantRecordWhere(user.organizationId, data.ownerId), active: true } }) : null,
+    data.companyId ? db.transportCompany.findFirst({ where: { ...tenantRecordWhere(user.organizationId, data.companyId), active: true } }) : null,
     db.vehicle.findFirst({ where: { organizationId: user.organizationId, plate: data.plate, status: { not: "INACTIVE" } } }),
   ]);
-  if (!category) return { error: "La categoría seleccionada no está disponible." };
-  if (data.ownerId && !owner) return { error: "El propietario seleccionado no está disponible." };
-  if (data.companyId && !company) return { error: "La empresa seleccionada no está disponible." };
+  const referenceError = validateVehicleReferences({ organizationId: user.organizationId, categoryId: data.categoryId, ownerId: data.ownerId, companyId: data.companyId, category, owner, company });
+  if (referenceError) return { error: referenceError };
   if (duplicate) return { error: `Ya existe un vehículo activo con la placa ${data.plate}.` };
 
   let vehicleId: string;
@@ -42,12 +42,13 @@ export async function createVehicleAction(_: FormState, formData: FormData): Pro
         internalNumber: data.internalNumber, vehicleClass: data.vehicleClass, brand: data.brand, line: data.line,
         model: data.model, year: optionalNumber(data.year), color: data.color, vin: data.vin,
         chassisNumber: data.chassisNumber, engineNumber: data.engineNumber, fuelType: data.fuelType,
-        passengerCapacity: optionalNumber(data.passengerCapacity), registrationDate: toDate(data.registrationDate),
+        passengerCapacity: optionalNumber(data.passengerCapacity), registrationDate: parseCivilDate(data.registrationDate),
         transitAuthority: data.transitAuthority, serviceType: data.serviceType, transportModality: data.transportModality,
         operationRadius: data.operationRadius, responsibleName: data.responsibleName, notes: data.notes,
       } });
-      if (owner) await tx.vehicleOwner.create({ data: { vehicleId: created.id, ownerId: owner.id, startsAt: new Date() } });
-      if (company) await tx.vehicleAffiliation.create({ data: { vehicleId: created.id, companyId: company.id, startsAt: new Date() } });
+      const today = parseCivilDate(bogotaToday())!;
+      if (owner) await tx.vehicleOwner.create({ data: { vehicleId: created.id, ownerId: owner.id, startsAt: today } });
+      if (company) await tx.vehicleAffiliation.create({ data: { vehicleId: created.id, companyId: company.id, startsAt: today } });
       return created;
     });
     vehicleId = vehicle.id;
@@ -63,29 +64,38 @@ export async function updateVehicleAction(vehicleId: string, _: FormState, formD
   const parsed = vehicleSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: "Revisa los campos señalados.", fieldErrors: parsed.error.flatten().fieldErrors };
   const data = parsed.data;
-  const existing = await db.vehicle.findFirst({ where: { id: vehicleId, organizationId: user.organizationId } });
-  if (!existing) return { error: "El vehículo no existe o no pertenece a tu organización." };
-  const duplicate = await db.vehicle.findFirst({ where: { organizationId: user.organizationId, plate: data.plate, status: { not: "INACTIVE" }, id: { not: vehicleId } } });
+  const [existing, category, owner, company, duplicate] = await Promise.all([
+    db.vehicle.findFirst({ where: tenantRecordWhere(user.organizationId, vehicleId) }),
+    db.vehicleCategory.findFirst({ where: { ...tenantRecordWhere(user.organizationId, data.categoryId), active: true } }),
+    data.ownerId ? db.owner.findFirst({ where: { ...tenantRecordWhere(user.organizationId, data.ownerId), active: true } }) : null,
+    data.companyId ? db.transportCompany.findFirst({ where: { ...tenantRecordWhere(user.organizationId, data.companyId), active: true } }) : null,
+    db.vehicle.findFirst({ where: { organizationId: user.organizationId, plate: data.plate, status: { not: "INACTIVE" }, id: { not: vehicleId } } }),
+  ]);
+  if (!isTenantRecord(existing, user.organizationId, vehicleId)) return { error: "El vehículo no existe o no pertenece a tu organización." };
+  const referenceError = validateVehicleReferences({ organizationId: user.organizationId, categoryId: data.categoryId, ownerId: data.ownerId, companyId: data.companyId, category, owner, company });
+  if (referenceError) return { error: referenceError };
   if (duplicate) return { error: `Ya existe otro vehículo activo con la placa ${data.plate}.` };
   try {
     await db.$transaction(async (tx) => {
-      await tx.vehicle.update({ where: { id: vehicleId }, data: {
+      const updated = await tx.vehicle.updateMany({ where: tenantRecordWhere(user.organizationId, vehicleId), data: {
         categoryId: data.categoryId, plate: data.plate, internalNumber: data.internalNumber, vehicleClass: data.vehicleClass,
         brand: data.brand, line: data.line, model: data.model, year: optionalNumber(data.year), color: data.color,
         vin: data.vin, chassisNumber: data.chassisNumber, engineNumber: data.engineNumber, fuelType: data.fuelType,
-        passengerCapacity: optionalNumber(data.passengerCapacity), registrationDate: toDate(data.registrationDate),
+        passengerCapacity: optionalNumber(data.passengerCapacity), registrationDate: parseCivilDate(data.registrationDate),
         transitAuthority: data.transitAuthority, serviceType: data.serviceType, transportModality: data.transportModality,
         operationRadius: data.operationRadius, responsibleName: data.responsibleName, notes: data.notes,
       } });
+      if (updated.count !== 1) throw new Error("TENANT_VEHICLE_NOT_FOUND");
+      const today = parseCivilDate(bogotaToday())!;
       const currentOwner = await tx.vehicleOwner.findFirst({ where: { vehicleId, isCurrent: true } });
       if (data.ownerId !== currentOwner?.ownerId) {
-        await tx.vehicleOwner.updateMany({ where: { vehicleId, isCurrent: true }, data: { isCurrent: false, endsAt: new Date() } });
-        if (data.ownerId) await tx.vehicleOwner.create({ data: { vehicleId, ownerId: data.ownerId, startsAt: new Date() } });
+        await tx.vehicleOwner.updateMany({ where: { vehicleId, isCurrent: true }, data: { isCurrent: false, endsAt: today } });
+        if (owner) await tx.vehicleOwner.create({ data: { vehicleId, ownerId: owner.id, startsAt: today } });
       }
       const currentCompany = await tx.vehicleAffiliation.findFirst({ where: { vehicleId, isCurrent: true } });
       if (data.companyId !== currentCompany?.companyId) {
-        await tx.vehicleAffiliation.updateMany({ where: { vehicleId, isCurrent: true }, data: { isCurrent: false, endsAt: new Date() } });
-        if (data.companyId) await tx.vehicleAffiliation.create({ data: { vehicleId, companyId: data.companyId, startsAt: new Date() } });
+        await tx.vehicleAffiliation.updateMany({ where: { vehicleId, isCurrent: true }, data: { isCurrent: false, endsAt: today } });
+        if (company) await tx.vehicleAffiliation.create({ data: { vehicleId, companyId: company.id, startsAt: today } });
       }
     });
   } catch (error) { return { error: friendlyPrismaError(error) }; }

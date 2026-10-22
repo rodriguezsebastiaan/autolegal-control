@@ -1,11 +1,16 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { formatCivilDate } from "./dates";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
 export function formatDate(value: Date | string | null | undefined) {
+  return formatCivilDate(value);
+}
+
+export function formatDateTime(value: Date | string | null | undefined) {
   if (!value) return "—";
   return new Intl.DateTimeFormat("es-CO", {
     day: "2-digit",

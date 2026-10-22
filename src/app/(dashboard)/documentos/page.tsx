@@ -8,7 +8,7 @@ import { EmptyState, PageHeader, StatusBadge } from "@/components/ui";
 
 export default async function DocumentsPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const user = await requireUser(); const params = await searchParams;
-  const documents = await db.document.findMany({ where: { organizationId: user.organizationId, ...(params.type ? { documentTypeId: params.type } : {}) }, include: { documentType: true, vehicle: true, responsible: true }, orderBy: [{ expiresAt: "asc" }, { createdAt: "desc" }] });
+  const documents = await db.document.findMany({ where: { organizationId: user.organizationId, documentType: { organizationId: user.organizationId }, vehicle: { organizationId: user.organizationId }, ...(params.type ? { documentTypeId: params.type } : {}) }, include: { documentType: true, vehicle: true, responsible: true }, orderBy: [{ expiresAt: "asc" }, { createdAt: "desc" }] });
   const types = await db.documentType.findMany({ where: { organizationId: user.organizationId, active: true }, orderBy: { name: "asc" } });
   return <><PageHeader eyebrow="Expediente central" title="Control documental" description="Vigencias calculadas en zona horaria de Colombia y separadas del estado del trámite." action={<Link href="/documentos/nuevo" className="btn-primary"><Plus size={17}/>Nuevo documento</Link>} />
     <form className="card mb-5 flex flex-wrap gap-3 p-4"><select name="type" className="field max-w-sm" defaultValue={params.type}><option value="">Todos los tipos documentales</option>{types.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</select><button className="btn-secondary">Filtrar</button></form>

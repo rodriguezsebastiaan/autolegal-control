@@ -3,6 +3,7 @@
 import { compare } from "bcryptjs";
 import { redirect } from "next/navigation";
 import { createSession, destroySession } from "@/lib/auth";
+import { findLoginCandidate } from "@/lib/credential-auth";
 import { db } from "@/lib/db";
 import { loginSchema } from "@/lib/validations";
 
@@ -13,10 +14,7 @@ export async function loginAction(_: AuthState, formData: FormData): Promise<Aut
   if (!parsed.success) return { error: parsed.error.issues[0]?.message || "Datos inválidos" };
 
   try {
-    const user = await db.user.findFirst({
-      where: { email: parsed.data.email, active: true },
-      include: { role: true },
-    });
+    const user = await findLoginCandidate(db, parsed.data.organizationCode, parsed.data.email);
     if (!user || !(await compare(parsed.data.password, user.passwordHash))) {
       return { error: "Correo o contraseña incorrectos" };
     }

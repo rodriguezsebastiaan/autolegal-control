@@ -1,9 +1,12 @@
 import { z } from "zod";
 import { normalizePlate } from "./utils";
+import { isCivilDate } from "./dates";
 
 const optionalText = z.string().trim().transform((value) => value || undefined).optional();
+const optionalCivilDate = z.string().trim().refine((value) => !value || isCivilDate(value), "Ingresa una fecha válida").transform((value) => value || undefined).optional();
 
 export const loginSchema = z.object({
+  organizationCode: z.string().trim().toLowerCase().regex(/^[a-z0-9](?:[a-z0-9-]{1,48}[a-z0-9])?$/, "Ingresa el código de organización"),
   email: z.string().trim().email("Ingresa un correo válido").toLowerCase(),
   password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
 });
@@ -30,7 +33,7 @@ export const vehicleSchema = z.object({
   engineNumber: optionalText,
   fuelType: optionalText,
   passengerCapacity: z.coerce.number().int().positive().optional().or(z.literal("")),
-  registrationDate: optionalText,
+  registrationDate: optionalCivilDate,
   transitAuthority: optionalText,
   serviceType: optionalText,
   transportModality: optionalText,
@@ -45,15 +48,15 @@ export const documentSchema = z
     documentTypeId: z.string().cuid("Selecciona un tipo de documento"),
     number: optionalText,
     issuer: optionalText,
-    issuedAt: optionalText,
-    validFrom: optionalText,
-    expiresAt: optionalText,
+    issuedAt: optionalCivilDate,
+    validFrom: optionalCivilDate,
+    expiresAt: optionalCivilDate,
     responsibleUserId: optionalText,
     notes: optionalText,
     verificationStatus: z.enum(["PENDING", "VERIFIED"]),
   })
   .refine(
-    (data) => !data.issuedAt || !data.expiresAt || new Date(data.expiresAt) >= new Date(data.issuedAt),
+    (data) => !data.issuedAt || !data.expiresAt || data.expiresAt >= data.issuedAt,
     { message: "El vencimiento no puede ser anterior a la expedición", path: ["expiresAt"] },
   );
 
@@ -89,5 +92,5 @@ export const driverSchema = z.object({
   email: z.string().trim().email().optional().or(z.literal("")),
   licenseNumber: optionalText,
   licenseCategory: optionalText,
-  licenseExpiresAt: optionalText,
+  licenseExpiresAt: optionalCivilDate,
 });

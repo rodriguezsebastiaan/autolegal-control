@@ -5,9 +5,9 @@ import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { db } from "@/lib/db";
+import { parseCivilDate } from "@/lib/dates";
+import { tenantRecordWhere } from "@/lib/tenancy";
 import { categorySchema, companySchema, driverSchema, ownerSchema } from "@/lib/validations";
-
-const date = (value?: string) => value ? new Date(`${value}T00:00:00.000Z`) : undefined;
 
 export async function createCategoryAction(formData: FormData) {
   const user = await requireRole(["ADMIN", "SUPERVISOR"]);
@@ -20,9 +20,9 @@ export async function createCategoryAction(formData: FormData) {
 
 export async function toggleCategoryAction(id: string) {
   const user = await requireRole(["ADMIN", "SUPERVISOR"]);
-  const category = await db.vehicleCategory.findFirst({ where: { id, organizationId: user.organizationId } });
+  const category = await db.vehicleCategory.findFirst({ where: tenantRecordWhere(user.organizationId, id) });
   if (!category) return;
-  await db.vehicleCategory.update({ where: { id }, data: { active: !category.active } });
+  await db.vehicleCategory.updateMany({ where: tenantRecordWhere(user.organizationId, id), data: { active: !category.active } });
   await audit({ organizationId: user.organizationId, userId: user.id, action: category.active ? "CATEGORY_DEACTIVATED" : "CATEGORY_ACTIVATED", entityType: "VehicleCategory", entityId: id });
   revalidatePath("/categorias");
 }
@@ -47,7 +47,7 @@ export async function createDriverAction(formData: FormData) {
   const user = await requireRole(["ADMIN", "SUPERVISOR", "DOCUMENT_MANAGER"]);
   const parsed = driverSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) redirect("/personas?tab=conductores&error=datos");
-  await db.driver.create({ data: { organizationId: user.organizationId, ...parsed.data, email: parsed.data.email || undefined, licenseExpiresAt: date(parsed.data.licenseExpiresAt) } });
+  await db.driver.create({ data: { organizationId: user.organizationId, ...parsed.data, email: parsed.data.email || undefined, licenseExpiresAt: parseCivilDate(parsed.data.licenseExpiresAt) } });
   revalidatePath("/personas"); redirect("/personas?creado=conductor");
 }
 

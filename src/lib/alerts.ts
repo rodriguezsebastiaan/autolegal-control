@@ -1,6 +1,6 @@
 import { Prisma, VerificationStatus } from "@prisma/client";
 import { db } from "./db";
-import { bogotaToday, dateKey, daysUntil } from "./dates";
+import { bogotaToday, dateKey, daysUntil, parseCivilDate } from "./dates";
 
 export function matchingAdvanceDays(expiration: Date | string, advanceDays: number[], today = bogotaToday()) {
   const remaining = daysUntil(expiration, today);
@@ -22,10 +22,15 @@ export async function evaluateAlerts(today = bogotaToday()) {
 
   let created = 0;
   for (const document of documents) {
-    if (!document.expiresAt || !document.vehicle) continue;
+    if (
+      !document.expiresAt ||
+      !document.vehicle ||
+      document.vehicle.organizationId !== document.organizationId ||
+      document.documentType.organizationId !== document.organizationId
+    ) continue;
     const companyId = document.vehicle.affiliations[0]?.companyId;
     const applicableRules = document.documentType.alertRules.filter(
-      (rule) => (!rule.vehicleId || rule.vehicleId === document.vehicleId) && (!rule.companyId || rule.companyId === companyId),
+      (rule) => rule.organizationId === document.organizationId && (!rule.vehicleId || rule.vehicleId === document.vehicleId) && (!rule.companyId || rule.companyId === companyId),
     );
 
     for (const rule of applicableRules) {
@@ -36,7 +41,7 @@ export async function evaluateAlerts(today = bogotaToday()) {
             documentId_alertRuleId_triggerDate: {
               documentId: document.id,
               alertRuleId: rule.id,
-              triggerDate: new Date(`${today}T00:00:00.000Z`),
+              triggerDate: parseCivilDate(today)!,
             },
           },
           update: {},
@@ -45,7 +50,7 @@ export async function evaluateAlerts(today = bogotaToday()) {
             documentId: document.id,
             alertRuleId: rule.id,
             responsibleUserId: document.responsibleUserId,
-            triggerDate: new Date(`${today}T00:00:00.000Z`),
+            triggerDate: parseCivilDate(today)!,
           },
         });
         if (rule.channel === "EMAIL") {
