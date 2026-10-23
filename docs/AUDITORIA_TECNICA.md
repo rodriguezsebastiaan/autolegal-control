@@ -2,11 +2,11 @@
 
 **Fecha:** 22 de octubre de 2026
 
-**Alcance:** versión inicial disponible en la rama `main`
+**Alcance:** versión inicial de `main` y correcciones acumuladas en `fix/p0-seguridad-fechas-auth`
 
 **Condición de la auditoría:** sin conexión a base de datos, sin migraciones, sin seed, sin ejecutar `scripts/setup-local-windows.ps1` y sin conectar Supabase.
 
-> **Actualización del 22 de octubre de 2026 — rama `fix/p0-seguridad-fechas-auth`:** los hallazgos P0-01, P0-02 y P0-03 fueron corregidos en código y cuentan con pruebas unitarias de regresión. Las migraciones no se aplicaron y la prueba integral con PostgreSQL continúa pendiente. P0-04 y P0-05 permanecen abiertos.
+> **Actualización del 22 de octubre de 2026 — rama `fix/p0-seguridad-fechas-auth`:** los hallazgos P0-01 a P0-05 fueron corregidos en código y cuentan con pruebas unitarias de regresión. Las migraciones no se aplicaron y las garantías que dependen de PostgreSQL (transacciones, restricciones, concurrencia e integración) continúan pendientes de validación real.
 
 ## 1. Conclusión ejecutiva
 
@@ -17,8 +17,8 @@ Sin embargo, **todavía no está listo para presentarse como una solución funci
 1. La edición de vehículos permitía referencias de otra organización; está corregida y probada en unidad, pendiente de prueba con BD.
 2. Las fechas PostgreSQL `DATE` se mostraban un día antes; está corregido y probado en unidad, pendiente de round-trip con BD.
 3. El login elegía ambiguamente cuando un correo existía en varias organizaciones; ahora exige un código de organización, pendiente de prueba integral.
-4. El alta documental permite que el mismo operador cree y marque un documento como verificado.
-5. El motor de alertas pierde eventos si no se ejecuta exactamente el día configurado y no excluye vehículos inactivos.
+4. El flujo documental inseguro fue reemplazado por versiones pendientes y revisión obligatoria por un usuario autorizado distinto; falta validarlo con PostgreSQL.
+5. El motor de alertas ahora recupera ejecuciones omitidas dentro de una ventana configurable, excluye vehículos inactivos y registra cada decisión; la concurrencia e idempotencia persistente requieren PostgreSQL.
 6. Renovaciones, almacenamiento privado, matriz de aplicabilidad y varios CRUD están modelados, pero no implementados funcionalmente.
 
 **Dictamen:** base de producto prometedora, pero estado actual de **prototipo funcional parcial**. Antes de mostrarlo a Autolegal se deben cerrar los problemas P0/P1, conectar un entorno de pruebas PostgreSQL/Supabase controlado y ejecutar pruebas integrales con datos.
@@ -33,12 +33,12 @@ Se revisaron todos los archivos fuente de `src/`, el esquema y la migración ini
 |---|---|---|
 | `npm run typecheck` | Correcto | Tipos TypeScript del proyecto |
 | `npm run lint` | Correcto | Reglas ESLint configuradas |
-| `npm test` | Correcto: 60 pruebas, 8 archivos | Incluye regresiones de tenant, acciones de vehículos/documentos, autenticación multiempresa y fechas civiles |
+| `npm test` | Correcto: 80 pruebas, 9 archivos | Incluye regresiones de tenant, separación de funciones, acciones documentales, recuperación de alertas, autenticación multiempresa y fechas civiles |
 | `npx prisma validate` con URL ficticia | Correcto | Sintaxis y relaciones del esquema; no valida la migración contra una BD |
-| `npm run build` con URL ficticia | Correcto | Compilación de producción: 16 rutas de la aplicación más la ruta automática de no encontrado |
+| `npm run build` con URL ficticia | Correcto | Compilación de producción: 18 rutas de la aplicación más la ruta automática de no encontrado |
 | Render de `/login` en navegador | Correcto en escritorio | Presentación y árbol accesible básico; no autenticación |
 | Playwright `tests/e2e/login.spec.ts` | No concluyente | Se reintentó sobre un build que respondió HTTP 200 en `/login`, pero el runner no produjo resultado y fue detenido. No se declara aprobado |
-| Prueba dirigida de `formatDate` | Falló funcionalmente | `2026-10-22T00:00:00.000Z` se muestra como `21/10/2026` |
+| Regresiones de fechas civiles | Correcto | Conservan el día exacto, incluidos límites de mes/año y febrero bisiesto |
 
 No se ejecutaron `db:migrate`, `db:deploy`, `db:seed`, `alerts:run`, Docker, PostgreSQL local ni el script de configuración de Windows.
 
@@ -63,9 +63,9 @@ Las clasificaciones se usan de forma estricta: “probado” significa que se ej
 | Propietarios | **Implementado parcialmente** | Alta y listado; sin edición, detalle, desactivación ni pruebas persistentes. |
 | Empresas transportadoras | **Implementado parcialmente** | Alta y listado; sin edición, detalle, desactivación ni pruebas persistentes. |
 | Conductores | **Implementado parcialmente** | Alta y listado; no hay asignación histórica a vehículos ni CRUD completo. |
-| Control documental | **Con errores** | Alta/listado/primera versión existen; verificación insegura, sin renovación/edición/rechazo/archivo privado. |
+| Control documental | **Implementado parcialmente** | Alta y actualización quedan pendientes; revisión/rechazo exigen otro usuario autorizado y generan auditoría. Falta prueba integral, renovación y archivo privado. |
 | Cálculo de vigencia | **Implementado parcialmente** | Las fechas civiles y su presentación están corregidas y probadas; `REJECTED` todavía se mezcla con pendiente. |
-| Alertas escalonadas | **Implementado parcialmente** | Coincidencia exacta e índice idempotente existen; no hay recuperación de ejecuciones omitidas, escalamiento completo ni cancelación. |
+| Alertas escalonadas | **Implementado, pero sin prueba integral** | Recuperación configurable, exclusión de inactivos, clave lógica idempotente, bloqueo asesor y trazabilidad implementados; faltan pruebas reales de concurrencia y persistencia. |
 | Prevención de duplicados | **Implementado, pero sin prueba integral** | Índice parcial de placas y unicidad de eventos están en migración; no se probaron concurrencia ni BD real. |
 | Renovaciones | **Pendiente** | Modelos y contador en dashboard; no hay páginas, acciones ni flujo operativo. |
 | Reportes CSV | **Implementado parcialmente** | Dos exportaciones; sin prueba real y vulnerables a fórmulas de hoja de cálculo. |
@@ -87,10 +87,12 @@ La compilación generó las siguientes rutas:
 | `/vehiculos` | Listado, búsqueda, filtros y paginación | Compila; contiene defectos en parámetros/paginación |
 | `/vehiculos/nuevo` | Alta de vehículo | Compila; requiere BD |
 | `/vehiculos/[id]` | Detalle e historial | Compila; requiere BD |
-| `/vehiculos/[id]/editar` | Edición | Compila; contiene vulnerabilidad P0 |
-| `/documentos` | Listado y filtro por tipo | Compila; sin paginación |
-| `/documentos/nuevo` | Alta documental | Compila; flujo de verificación incorrecto |
-| `/alertas` | Eventos y reglas, acción de revisión | Compila; motor parcial |
+| `/vehiculos/[id]/editar` | Edición | Compila; aislamiento P0 corregido, pendiente de BD |
+| `/documentos` | Listado, filtro y acceso a revisión | Compila; sin paginación |
+| `/documentos/nuevo` | Alta documental pendiente de revisión | Compila; requiere BD |
+| `/documentos/[id]` | Detalle, historial y revisión separada | Compila; requiere BD y dos usuarios |
+| `/documentos/[id]/editar` | Propuesta de nueva versión | Compila; no activa vigencia hasta aprobación |
+| `/alertas` | Eventos y reglas, acción de revisión | Compila; motor con recuperación pendiente de BD |
 | `/personas` | Altas y listados de propietarios, empresas y conductores | Compila; CRUD incompleto |
 | `/categorias` | Alta y toggle activo/inactivo | Compila; CRUD incompleto |
 | `/reportes` | Contadores y enlaces CSV | Compila; conteo de vencidos inconsistente |
@@ -129,28 +131,23 @@ El esquema solo hace único el correo dentro de una organización (`prisma/schem
 
 **Corrección aplicada:** cada organización tiene `loginCode` único y el formulario lo exige. La identidad se busca mediante la clave compuesta `organizationId_email`; se eliminó `findFirst` por correo. Las pruebas demuestran que el mismo correo selecciona cuentas distintas solo con el código correspondiente y que no se acepta un registro de otro tenant. Se agregó una migración, pero **no fue aplicada**. La futura integración con Supabase Auth deberá conservar esta selección explícita o reemplazarla por una membresía equivalente.
 
-### P0-04 — Separación insuficiente entre carga y verificación documental
+### P0-04 — Separación insuficiente entre carga y verificación documental — corregido en código
 
-El formulario permite seleccionar `VERIFIED` al crear (`src/components/document-form.tsx:25`) y la misma acción acepta ese estado para ADMIN, SUPERVISOR y DOCUMENT_MANAGER (`src/app/actions/documents.ts:12-35`). No existe una acción independiente de verificar/rechazar, ni se registra quién verificó.
+**Corrección aplicada:** el cliente ya no puede enviar un estado de verificación. Toda alta o actualización crea una `DocumentVersion` pendiente; una actualización no sustituye la vigencia activa. Solo `ADMIN` o `SUPERVISOR` pueden revisar desde una acción de servidor y el autor de la versión no puede aprobarla ni rechazarla, aunque sea administrador. La aprobación activa los datos propuestos y cancela alertas abiertas de la vigencia anterior; el rechazo exige motivo. Alta, propuesta, aprobación y rechazo generan `AuditLog` dentro de la misma transacción.
 
-Esto permite que un operador cargue y apruebe el mismo documento, tras lo cual entra al cálculo de alertas.
+Las consultas y mutaciones de revisión validan organización, tipo documental y vehículo. El esquema agrega creador, revisor, fechas/motivo, claves foráneas e índice parcial para impedir más de una versión pendiente por documento. El seed demostrativo usa dos identidades distintas y deja auditoría de ambas actuaciones.
 
-**Corrección requerida:** crear flujo separado de carga, revisión, rechazo y verificación; almacenar `verifiedById`; definir permiso específico y, si Autolegal lo exige, control de doble intervención.
+**Evidencia disponible:** pruebas unitarias de roles, autor distinto, versión pendiente y tenant; pruebas de acciones que rechazan una versión ajena y la autoaprobación. **Pendiente:** aplicar la migración en un entorno autorizado y comprobar transacciones, índice parcial, auditoría y flujo UI autenticado con dos usuarios reales.
 
-### P0-05 — Motor de alertas no garantiza continuidad operativa
+Los documentos ya marcados como verificados antes de esta migración conservarán ese estado y pueden no tener `verifiedById`; deben identificarse y regularizarse con una decisión de negocio antes de una carga de datos real. La migración no inventa un verificador ni desactiva vigencias históricas silenciosamente.
 
-`src/lib/alerts.ts:5-76` crea un evento solo cuando los días restantes coinciden exactamente con `advanceDays`. Si la tarea no se ejecuta ese día, el evento nunca se recupera. Además:
+### P0-05 — Continuidad e idempotencia del motor de alertas — corregido en código
 
-- no excluye vehículos `INACTIVE`;
-- no consulta la matriz `DocumentRequirement`;
-- no resuelve eventos de una versión anterior al renovar;
-- no crea una alerta continua para documentos ya vencidos;
-- no implementa reintentos/escalamiento real;
-- el conteo `created` depende de comparar la fecha de creación y puede contar un evento preexistente creado el mismo día como nuevo.
+**Corrección aplicada:** cada umbral tiene una fecha lógica estable (`vencimiento - anticipación`). El motor genera el evento en esa fecha o lo recupera después dentro de `ALERT_RECOVERY_DAYS` (7 días por defecto, máximo 30); lo que quede fuera se omite y registra para evitar una inundación histórica. Solo evalúa documentos verificados de vehículos no inactivos, no recorre versiones históricas y la aprobación de una nueva vigencia cancela eventos abiertos de la anterior.
 
-La unicidad `(document, regla, fecha)` previene parte de los duplicados, pero no demuestra idempotencia de negocio completa.
+Cada ejecución y decisión queda registrada como generada, recuperada, ya existente, omitida o fallida. La restricción única `(documento, regla, fecha lógica)` mantiene la idempotencia y un advisory lock transaccional de PostgreSQL evita dos ejecuciones simultáneas del motor. Los canales externos permanecen desactivados.
 
-**Corrección requerida:** definir ventana de recuperación, semántica de evento por umbral/versión, exclusión de inactivos, transición al renovar y pruebas de concurrencia sobre PostgreSQL.
+**Evidencia disponible:** pruebas unitarias para interrupciones de 1, 3, 7 y 15 días, política ampliada, reejecución con la misma fecha lógica, cambio de mes/año y año bisiesto. **Pendiente:** validar advisory lock, restricción única, savepoints, cancelación y recuperación con PostgreSQL real, incluidas dos ejecuciones concurrentes. La matriz `DocumentRequirement`, escalamiento y reintentos externos siguen fuera de este P0.
 
 ## 6. Problemas importantes
 
@@ -165,7 +162,7 @@ La unicidad `(document, regla, fecha)` previene parte de los duplicados, pero no
 - El campo IP existe en el modelo, pero `src/lib/audit.ts` no lo recibe ni lo guarda.
 - No hay política implementada de retención, minimización, enmascaramiento, exportación o eliminación de datos personales.
 - No hay RLS. El aislamiento depende exclusivamente del código de aplicación y ya tiene al menos una brecha comprobada por revisión.
-- `DocumentVersion.createdById` no tiene relación FK con `User`; la inmutabilidad de versiones no está reforzada con permisos/triggers en BD.
+- Las nuevas relaciones de autor/revisor documental tienen claves foráneas, pero la inmutabilidad de versiones no está reforzada mediante permisos o triggers de BD.
 - `AlertRule.companyId` y `vehicleId` no tienen claves foráneas en el esquema, permitiendo referencias colgantes o de otro tenant.
 
 ### Vehículos y seis categorías
@@ -192,7 +189,7 @@ La unicidad `(document, regla, fecha)` previene parte de los duplicados, pero no
 ### Documentos, vencimientos y renovaciones
 
 - El alta solo permite sujeto vehículo, aunque el modelo admite documento de propietario, empresa o conductor.
-- No existe edición, reemplazo, rechazo, verificación separada, anulación ni vista detallada del historial de versiones.
+- Ya existe propuesta de actualización, rechazo, verificación separada y vista del historial; siguen pendientes anulación formal, adjuntos privados y prueba integral.
 - No se controla duplicidad lógica de documento vigente por sujeto/tipo/número.
 - No se usan `DocumentRequirement` ni la aplicabilidad por categoría.
 - No hay soporte para fecha límite de pago ni otros hitos del trámite.
@@ -257,14 +254,17 @@ Las rutas verifican sesión y filtran por organización, pero el escape CSV solo
 
 ## 8. Pruebas actuales y vacíos de cobertura
 
-### Lo que sí cubren las 60 pruebas unitarias
+### Lo que sí cubren las 80 pruebas unitarias
 
 - normalización y formatos admitidos de placa;
 - diferencias de fechas en varios umbrales, cambio de mes y año bisiesto;
 - clasificación básica de documento verificado/pendiente;
-- coincidencia exacta de días de anticipación;
+- fecha lógica e intervalos de recuperación de alertas de 1, 3, 7 y 15 días;
+- omisión controlada fuera de la ventana configurable, cambios de mes/año y año bisiesto;
 - preservación y presentación de fechas civiles, incluidos cambios de mes/año y año bisiesto;
 - rechazo de referencias de otro tenant en helpers y acciones de vehículos/documentos;
+- separación de funciones documental por rol, autor, estado y organización;
+- rechazo desde la acción de servidor de una versión ajena y de la autoaprobación administrativa;
 - eliminación de `organizationId` no autorizado en formularios de catálogos;
 - resolución inequívoca de un mismo correo en dos organizaciones mediante código de organización.
 
@@ -276,14 +276,14 @@ Las rutas verifican sesión y filtran por organización, pero el escape CSV solo
 - aislamiento entre organizaciones respaldado por PostgreSQL/RLS;
 - CRUD y duplicados en BD;
 - historial de propietario/afiliación;
-- versión documental, verificación y transacciones;
+- persistencia y atomicidad de versiones, verificación y auditoría documental;
 - idempotencia real y concurrencia de alertas;
-- ejecuciones omitidas, vencidos, inactivos y renovación;
+- consultas reales para excluidos/inactivos, cancelación al aprobar una nueva vigencia y renovación;
 - dashboard con fixtures conocidos;
 - CSV y prevención de fórmulas;
 - responsive y accesibilidad de páginas protegidas.
 
-El nombre de la prueba de alertas sugiere “una sola vez”, pero solo verifica que un número pertenezca a una lista; no crea dos eventos ni comprueba el índice único.
+Las pruebas puras demuestran que una reejecución conserva la misma fecha lógica, pero no pueden demostrar por sí solas que dos procesos concurrentes produzcan un único registro; eso queda expresamente pendiente de PostgreSQL.
 
 ## 9. Funcionalidades que requieren obligatoriamente base de datos
 
@@ -343,9 +343,8 @@ Para declarar el producto funcional deben probarse con PostgreSQL/Supabase en un
 - Asociación e historial de conductores.
 - Matriz de requisitos documentales por categoría/sujeto.
 - Carga y consulta segura de PDF/imágenes.
-- Flujo independiente de verificación/rechazo.
 - Renovación completa con tareas, responsables, comentarios, soportes y cierre.
-- Cancelación/resolución automática de alertas al renovar o desactivar.
+- Cancelación/resolución automática de alertas al desactivar vehículos y cierre integral de renovaciones.
 - Editor de reglas y canales de alertas.
 - Reintentos y proveedor real de correo; hoy solo se crea un delivery simbólico.
 - Administración de usuarios, roles, recuperación de contraseña y sesiones.
@@ -362,8 +361,8 @@ Para declarar el producto funcional deben probarse con PostgreSQL/Supabase en un
 1. **Corregido en código:** aislamiento de referencias en edición de vehículo y pruebas multiempresa. Pendiente integración con BD.
 2. **Corregido y probado en unidad:** fechas civiles y definición de “vence hoy”. Pendiente round-trip con BD.
 3. **Corregido en autenticación local:** identidad/tenant mediante código de organización. Pendiente integración con BD y futura alineación con Supabase Auth.
-4. Separar carga de verificación documental y registrar verificador.
-5. Rediseñar semántica del motor de alertas para ejecuciones omitidas, inactivos, versiones y vencidos.
+4. **Corregido en código y probado en unidad:** separar carga/actualización de la revisión documental, impedir autoaprobación y registrar autor, revisor, rechazo y auditoría. Pendiente integración con BD.
+5. **Corregido en código y probado en unidad:** recuperación configurable, fecha lógica idempotente, exclusión de inactivos, trazabilidad y bloqueo concurrente. Pendiente integración y concurrencia real con PostgreSQL.
 6. Crear un entorno PostgreSQL/Supabase de prueba, aplicar la migración solo tras aprobación y ejecutar pruebas integrales.
 
 ### P1 — Antes de una demostración funcional

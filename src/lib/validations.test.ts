@@ -24,6 +24,15 @@ describe("validación de seguridad y fechas", () => {
     expect(documentSchema.safeParse({ vehicleId: base.categoryId, documentTypeId: base.categoryId, verificationStatus: "PENDING", issuedAt: "2026-02-30" }).success).toBe(false);
   });
 
+  it("elimina un estado de verificación enviado por el frontend", () => {
+    const parsed = documentSchema.parse({
+      vehicleId: base.categoryId,
+      documentTypeId: base.categoryId,
+      verificationStatus: "VERIFIED",
+    });
+    expect(parsed).not.toHaveProperty("verificationStatus");
+  });
+
   it.each([
     [ownerSchema, { personType: "NATURAL", identificationType: "CC", identificationNumber: "12345", displayName: "Persona Demo" }],
     [companySchema, { nit: "900123", businessName: "Empresa Demo" }],

@@ -68,6 +68,22 @@ enum DeliveryStatus {
   CANCELLED
 }
 
+enum AlertRunStatus {
+  RUNNING
+  COMPLETED
+  PARTIAL
+  FAILED
+  SKIPPED_CONCURRENT
+}
+
+enum AlertEvaluationOutcome {
+  GENERATED
+  RECOVERED
+  ALREADY_EXISTS
+  OMITTED
+  FAILED
+}
+
 enum RenewalStatus {
   PENDING
   OWNER_CONTACTED
@@ -104,6 +120,7 @@ model Organization {
   documents            Document[]
   alertRules           AlertRule[]
   alertEvents          AlertEvent[]
+  alertEvaluationLogs  AlertEvaluationLog[]
   renewalTasks         RenewalTask[]
   auditLogs            AuditLog[]
 
@@ -121,24 +138,29 @@ model Role {
 }
 
 model User {
-  id             String           @id @default(cuid())
-  organizationId String           @map("organization_id")
-  roleId         String           @map("role_id")
-  email          String
-  name           String
-  passwordHash   String           @map("password_hash")
-  active         Boolean          @default(true)
-  createdAt      DateTime         @default(now()) @map("created_at")
-  updatedAt      DateTime         @updatedAt @map("updated_at")
-  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  role           Role             @relation(fields: [roleId], references: [id], onDelete: Restrict)
-  sessions       Session[]
-  assignedDocs   Document[]       @relation("DocumentResponsible")
-  assignedAlerts AlertEvent[]     @relation("AlertResponsible")
-  assignedTasks  RenewalTask[]    @relation("RenewalResponsible")
-  closedTasks    RenewalTask[]    @relation("RenewalClosedBy")
-  comments       RenewalComment[]
-  auditLogs      AuditLog[]
+  id                  String            @id @default(cuid())
+  organizationId      String            @map("organization_id")
+  roleId              String            @map("role_id")
+  email               String
+  name                String
+  passwordHash        String            @map("password_hash")
+  active              Boolean           @default(true)
+  createdAt           DateTime          @default(now()) @map("created_at")
+  updatedAt           DateTime          @updatedAt @map("updated_at")
+  organization        Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  role                Role              @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  sessions            Session[]
+  assignedDocs        Document[]        @relation("DocumentResponsible")
+  createdDocs         Document[]        @relation("DocumentCreatedBy")
+  verifiedDocs        Document[]        @relation("DocumentVerifiedBy")
+  createdVersions     DocumentVersion[] @relation("DocumentVersionCreatedBy")
+  reviewedVersions    DocumentVersion[] @relation("DocumentVersionReviewedBy")
+  responsibleVersions DocumentVersion[] @relation("DocumentVersionResponsible")
+  assignedAlerts      AlertEvent[]      @relation("AlertResponsible")
+  assignedTasks       RenewalTask[]     @relation("RenewalResponsible")
+  closedTasks         RenewalTask[]     @relation("RenewalClosedBy")
+  comments            RenewalComment[]
+  auditLogs           AuditLog[]
 
   @@unique([organizationId, email])
   @@index([organizationId, active])
@@ -389,6 +411,8 @@ model Document {
   companyId          String?               @map("company_id")
   driverId           String?               @map("driver_id")
   responsibleUserId  String?               @map("responsible_user_id")
+  createdById        String?               @map("created_by_id")
+  verifiedById       String?               @map("verified_by_id")
   number             String?
   issuer             String?
   issuedAt           DateTime?             @map("issued_at") @db.Date
@@ -398,6 +422,8 @@ model Document {
   verificationStatus VerificationStatus    @default(PENDING) @map("verification_status")
   processStatus      DocumentProcessStatus @default(NONE) @map("process_status")
   verifiedAt         DateTime?             @map("verified_at")
+  reviewedAt         DateTime?             @map("reviewed_at")
+  rejectionReason    String?               @map("rejection_reason")
   fileKey            String?               @map("file_key")
   originalFileName   String?               @map("original_file_name")
   notes              String?
@@ -410,11 +436,15 @@ model Document {
   company            TransportCompany?     @relation(fields: [companyId], references: [id], onDelete: Cascade)
   driver             Driver?               @relation(fields: [driverId], references: [id], onDelete: Cascade)
   responsible        User?                 @relation("DocumentResponsible", fields: [responsibleUserId], references: [id], onDelete: SetNull)
+  createdBy          User?                 @relation("DocumentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  verifiedBy         User?                 @relation("DocumentVerifiedBy", fields: [verifiedById], references: [id], onDelete: SetNull)
   versions           DocumentVersion[]
   alertEvents        AlertEvent[]
+  evaluationLogs     AlertEvaluationLog[]
   renewalTasks       RenewalTask[]
 
   @@index([organizationId, expiresAt])
+  @@index([organizationId, verificationStatus])
   @@index([vehicleId, documentTypeId])
   @@index([verificationStatus, expiresAt])
   @@map("documents")
@@ -434,29 +464,38 @@ model DocumentVersion {
   originalFileName   String?            @map("original_file_name")
   notes              String?
   createdById        String?            @map("created_by_id")
+  responsibleUserId  String?            @map("responsible_user_id")
+  reviewedById       String?            @map("reviewed_by_id")
+  reviewedAt         DateTime?          @map("reviewed_at")
+  rejectionReason    String?            @map("rejection_reason")
   createdAt          DateTime           @default(now()) @map("created_at")
   document           Document           @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  createdBy          User?              @relation("DocumentVersionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  reviewedBy         User?              @relation("DocumentVersionReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  responsible        User?              @relation("DocumentVersionResponsible", fields: [responsibleUserId], references: [id], onDelete: SetNull)
 
   @@unique([documentId, version])
   @@index([documentId, createdAt])
+  @@index([documentId, verificationStatus])
   @@map("document_versions")
 }
 
 model AlertRule {
-  id             String              @id @default(cuid())
-  organizationId String              @map("organization_id")
-  documentTypeId String              @map("document_type_id")
-  companyId      String?             @map("company_id")
-  vehicleId      String?             @map("vehicle_id")
-  advanceDays    Int                 @map("advance_days")
-  channel        NotificationChannel @default(INTERNAL)
-  active         Boolean             @default(true)
-  escalation     Boolean             @default(false)
-  createdAt      DateTime            @default(now()) @map("created_at")
-  updatedAt      DateTime            @updatedAt @map("updated_at")
-  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  documentType   DocumentType        @relation(fields: [documentTypeId], references: [id], onDelete: Cascade)
+  id             String               @id @default(cuid())
+  organizationId String               @map("organization_id")
+  documentTypeId String               @map("document_type_id")
+  companyId      String?              @map("company_id")
+  vehicleId      String?              @map("vehicle_id")
+  advanceDays    Int                  @map("advance_days")
+  channel        NotificationChannel  @default(INTERNAL)
+  active         Boolean              @default(true)
+  escalation     Boolean              @default(false)
+  createdAt      DateTime             @default(now()) @map("created_at")
+  updatedAt      DateTime             @updatedAt @map("updated_at")
+  organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  documentType   DocumentType         @relation(fields: [documentTypeId], references: [id], onDelete: Cascade)
   events         AlertEvent[]
+  evaluationLogs AlertEvaluationLog[]
 
   @@unique([organizationId, documentTypeId, companyId, vehicleId, advanceDays, channel])
   @@index([organizationId, active])
@@ -480,6 +519,7 @@ model AlertEvent {
   alertRule         AlertRule              @relation(fields: [alertRuleId], references: [id], onDelete: Cascade)
   responsible       User?                  @relation("AlertResponsible", fields: [responsibleUserId], references: [id], onDelete: SetNull)
   deliveries        NotificationDelivery[]
+  evaluationLogs    AlertEvaluationLog[]
 
   @@unique([documentId, alertRuleId, triggerDate])
   @@index([organizationId, status, triggerDate])
@@ -502,6 +542,49 @@ model NotificationDelivery {
   @@unique([alertEventId, recipient, channel, attempt])
   @@index([status, createdAt])
   @@map("notification_deliveries")
+}
+
+model AlertEvaluationRun {
+  id             String               @id @default(cuid())
+  evaluationDate DateTime             @map("evaluation_date") @db.Date
+  recoveryDays   Int                  @map("recovery_days")
+  status         AlertRunStatus       @default(RUNNING)
+  evaluated      Int                  @default(0)
+  generated      Int                  @default(0)
+  recovered      Int                  @default(0)
+  alreadyExists  Int                  @default(0) @map("already_exists")
+  omitted        Int                  @default(0)
+  failed         Int                  @default(0)
+  errorMessage   String?              @map("error_message")
+  startedAt      DateTime             @default(now()) @map("started_at")
+  completedAt    DateTime?            @map("completed_at")
+  logs           AlertEvaluationLog[]
+
+  @@index([evaluationDate, status])
+  @@map("alert_evaluation_runs")
+}
+
+model AlertEvaluationLog {
+  id             String                 @id @default(cuid())
+  runId          String                 @map("run_id")
+  organizationId String                 @map("organization_id")
+  documentId     String                 @map("document_id")
+  alertRuleId    String                 @map("alert_rule_id")
+  eventId        String?                @map("event_id")
+  scheduledDate  DateTime               @map("scheduled_date") @db.Date
+  outcome        AlertEvaluationOutcome
+  reason         String?
+  errorMessage   String?                @map("error_message")
+  createdAt      DateTime               @default(now()) @map("created_at")
+  run            AlertEvaluationRun     @relation(fields: [runId], references: [id], onDelete: Cascade)
+  organization   Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  document       Document               @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  alertRule      AlertRule              @relation(fields: [alertRuleId], references: [id], onDelete: Cascade)
+  event          AlertEvent?            @relation(fields: [eventId], references: [id], onDelete: SetNull)
+
+  @@index([runId, outcome])
+  @@index([organizationId, scheduledDate])
+  @@map("alert_evaluation_logs")
 }
 
 model RenewalTask {

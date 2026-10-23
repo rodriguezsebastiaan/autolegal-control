@@ -42,23 +42,31 @@ export const vehicleSchema = z.object({
   notes: optionalText,
 });
 
-export const documentSchema = z
-  .object({
-    vehicleId: z.string().cuid("Selecciona un vehículo"),
-    documentTypeId: z.string().cuid("Selecciona un tipo de documento"),
-    number: optionalText,
-    issuer: optionalText,
-    issuedAt: optionalCivilDate,
-    validFrom: optionalCivilDate,
-    expiresAt: optionalCivilDate,
-    responsibleUserId: optionalText,
-    notes: optionalText,
-    verificationStatus: z.enum(["PENDING", "VERIFIED"]),
-  })
-  .refine(
-    (data) => !data.issuedAt || !data.expiresAt || data.expiresAt >= data.issuedAt,
-    { message: "El vencimiento no puede ser anterior a la expedición", path: ["expiresAt"] },
-  );
+const documentVersionFields = {
+  number: optionalText,
+  issuer: optionalText,
+  issuedAt: optionalCivilDate,
+  validFrom: optionalCivilDate,
+  expiresAt: optionalCivilDate,
+  responsibleUserId: optionalText,
+  notes: optionalText,
+};
+
+const validDocumentDates = <T extends { issuedAt?: string; expiresAt?: string }>(data: T) =>
+  !data.issuedAt || !data.expiresAt || data.expiresAt >= data.issuedAt;
+
+export const documentSchema = z.object({
+  vehicleId: z.string().cuid("Selecciona un vehículo"),
+  documentTypeId: z.string().cuid("Selecciona un tipo de documento"),
+  ...documentVersionFields,
+}).refine(validDocumentDates, { message: "El vencimiento no puede ser anterior a la expedición", path: ["expiresAt"] });
+
+export const documentVersionSchema = z.object(documentVersionFields)
+  .refine(validDocumentDates, { message: "El vencimiento no puede ser anterior a la expedición", path: ["expiresAt"] });
+
+export const documentRejectionSchema = z.object({
+  reason: z.string().trim().min(10, "Explica el motivo del rechazo (mínimo 10 caracteres)").max(500),
+});
 
 export const categorySchema = z.object({
   name: z.string().trim().min(2).max(80),

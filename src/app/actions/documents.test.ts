@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   vehicleFindFirst: vi.fn(),
   typeFindFirst: vi.fn(),
   userFindFirst: vi.fn(),
+  versionFindFirst: vi.fn(),
   transaction: vi.fn(),
 }));
 
@@ -17,11 +18,12 @@ vi.mock("@/lib/db", () => ({
     vehicle: { findFirst: mocks.vehicleFindFirst },
     documentType: { findFirst: mocks.typeFindFirst },
     user: { findFirst: mocks.userFindFirst },
+    documentVersion: { findFirst: mocks.versionFindFirst },
     $transaction: mocks.transaction,
   },
 }));
 
-import { createDocumentAction } from "./documents";
+import { approveDocumentVersionAction, createDocumentAction } from "./documents";
 
 const organizationA = "org-a";
 const organizationB = "org-b";
@@ -63,6 +65,44 @@ describe("createDocumentAction: aislamiento multiempresa", () => {
     const result = await createDocumentAction({}, documentForm(true));
 
     expect(result.error).toMatch(/responsable.*no está disponible/i);
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+});
+
+describe("approveDocumentVersionAction: autorización y separación de funciones", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.requireRole.mockResolvedValue({ id: "reviewer-a", organizationId: organizationA, role: { code: "ADMIN" } });
+  });
+
+  it("no revela ni modifica una versión de otra organización", async () => {
+    mocks.versionFindFirst.mockResolvedValue(null);
+
+    const result = await approveDocumentVersionAction("version-b", {}, new FormData());
+
+    expect(result?.error).toMatch(/no existe o no pertenece/i);
+    expect(mocks.versionFindFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        id: "version-b",
+        document: expect.objectContaining({ organizationId: organizationA }),
+      }),
+    }));
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+
+  it("impide que un administrador apruebe su propia versión", async () => {
+    mocks.requireRole.mockResolvedValue({ id: "creator-a", organizationId: organizationA, role: { code: "ADMIN" } });
+    mocks.versionFindFirst.mockResolvedValue({
+      id: "version-a",
+      documentId: "document-a",
+      createdById: "creator-a",
+      verificationStatus: "PENDING",
+      document: { id: "document-a", organizationId: organizationA, vehicleId },
+    });
+
+    const result = await approveDocumentVersionAction("version-a", {}, new FormData());
+
+    expect(result?.error).toMatch(/no puedes revisar/i);
     expect(mocks.transaction).not.toHaveBeenCalled();
   });
 });
