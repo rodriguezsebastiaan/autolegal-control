@@ -13,7 +13,7 @@ export default defineConfig({
   ],
   webServer: {
     command: "npm run demo",
-    url: "http://127.0.0.1:3000/demo",
+    url: "http://127.0.0.1:3000/panel",
     reuseExistingServer: true,
     timeout: 120_000,
   },

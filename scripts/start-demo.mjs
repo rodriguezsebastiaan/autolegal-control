@@ -17,6 +17,6 @@ child.on("exit", (code, signal) => {
   process.exit(code ?? 1);
 });
 child.on("error", (error) => {
-  console.error("No fue posible iniciar AUTOLEGAL CONTROL DEMO:", error);
+  console.error("No fue posible iniciar el panel local de AUTOLEGAL CONTROL:", error);
   process.exit(1);
 });

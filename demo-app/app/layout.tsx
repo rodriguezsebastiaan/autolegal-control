@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: { default: "AUTOLEGAL CONTROL · DEMO", template: "%s | AUTOLEGAL DEMO" },
-  description: "Demostración visual local de AUTOLEGAL CONTROL con datos ficticios.",
+  title: { default: "AUTOLEGAL CONTROL", template: "%s | AUTOLEGAL CONTROL" },
+  description: "Panel local de evaluación funcional de AUTOLEGAL CONTROL.",
   robots: { index: false, follow: false },
 };
 

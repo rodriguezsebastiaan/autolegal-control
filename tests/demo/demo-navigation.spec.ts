@@ -1,34 +1,33 @@
 import { expect, test } from "@playwright/test";
 
 const routes = [
-  ["/demo", "Resumen ejecutivo"],
-  ["/demo/vehiculos", "Vehículos"],
-  ["/demo/vehiculos/DMO101", "DMO-101"],
-  ["/demo/categorias", "Cinco categorías vehiculares"],
-  ["/demo/categorias/DEMO-TX", "Taxis"],
-  ["/demo/documentos", "Documentos y vencimientos"],
-  ["/demo/alertas", "Centro de alertas"],
-  ["/demo/renovaciones", "Renovaciones"],
-  ["/demo/propietarios", "Propietarios"],
-  ["/demo/conductores", "Conductores"],
-  ["/demo/reportes", "Reportes"],
-  ["/demo/configuracion", "Configuración"],
+  ["/panel", "Resumen ejecutivo"],
+  ["/panel/vehiculos", "Vehículos"],
+  ["/panel/vehiculos/ABC123", "ABC-123"],
+  ["/panel/categorias", "Cinco categorías vehiculares"],
+  ["/panel/categorias/TX", "Taxis"],
+  ["/panel/documentos", "Documentos y vencimientos"],
+  ["/panel/alertas", "Centro de alertas"],
+  ["/panel/renovaciones", "Renovaciones"],
+  ["/panel/propietarios", "Propietarios"],
+  ["/panel/conductores", "Conductores"],
+  ["/panel/reportes", "Reportes"],
+  ["/panel/configuracion", "Configuración"],
 ] as const;
 
-test("todos los módulos DEMO son navegables y están identificados", async ({ page }) => {
+test("todos los módulos del panel son navegables y están identificados", async ({ page }) => {
   for (const [route, heading] of routes) {
     await page.goto(route, { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible();
-    await expect(page.getByText("Datos DEMO:")).toBeVisible();
-    await expect(page.getByText("Modo DEMO local", { exact: true })).toBeVisible();
+    await expect(page.locator("header").getByText("Entorno local", { exact: true })).toBeVisible();
   }
 });
 
 test("la navegación móvil permite recorrer los módulos", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "demo-mobile", "Validación exclusiva del viewport móvil");
-  await page.goto("/demo");
+  await page.goto("/panel");
   await page.getByRole("button", { name: "Abrir menú" }).click();
-  await expect(page.getByRole("navigation", { name: "Módulos de demostración" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Navegación principal" })).toBeVisible();
   await page.getByRole("link", { name: "Vehículos" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Vehículos" })).toBeVisible();
   const horizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
@@ -36,44 +35,59 @@ test("la navegación móvil permite recorrer los módulos", async ({ page }, tes
 });
 
 test("los reportes y la configuración real permanecen protegidos", async ({ page }) => {
-  await page.goto("/demo/reportes", { waitUntil: "domcontentloaded" });
+  await page.goto("/panel/reportes", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("button", { name: /exportación disponible/i })).toHaveCount(4);
   for (const button of await page.getByRole("button", { name: /exportación disponible/i }).all()) await expect(button).toBeDisabled();
-  await page.goto("/demo/configuracion", { waitUntil: "domcontentloaded" });
+  await page.goto("/panel/configuracion", { waitUntil: "domcontentloaded" });
   await expect(page.getByText("Configuración protegida")).toBeVisible();
 });
 
-test("registra un vehículo y su primer documento solo en la DEMO", async ({ page }) => {
-  await page.goto("/demo/vehiculos", { waitUntil: "domcontentloaded" });
+test("registra un vehículo y su primer documento en el entorno local", async ({ page }) => {
+  await page.goto("/panel/vehiculos", { waitUntil: "domcontentloaded" });
   await expect(page.locator('[data-demo-hydrated="true"]')).toBeVisible();
   await page.getByRole("button", { name: "Registrar vehículo" }).click();
   const dialog = page.getByRole("dialog", { name: "Registrar vehículo" });
   await dialog.locator('[name="plate"]').fill("TST777");
-  await dialog.locator('[name="internalNumber"]').fill("DEMO-TEST-77");
-  await dialog.locator('[name="categoryCode"]').selectOption("DEMO-TX");
-  await dialog.locator('[name="service"]').fill("Taxi DEMO");
-  await dialog.locator('[name="brand"]').fill("Marca DEMO");
-  await dialog.locator('[name="line"]').fill("Línea DEMO");
+  await dialog.locator('[name="internalNumber"]').fill("TX-077");
+  await dialog.locator('[name="categoryCode"]').selectOption("TX");
+  await dialog.locator('[name="service"]').fill("Taxi individual");
+  await dialog.locator('[name="brand"]').fill("Renault");
+  await dialog.locator('[name="line"]').fill("Logan");
   await dialog.locator('[name="color"]').fill("Amarillo");
   await dialog.locator('[name="ownerId"]').selectOption("demo-owner-05");
-  await dialog.locator('[name="documentNumber"]').fill("SOAT-DEMO-777");
-  await dialog.locator('[name="issuer"]').fill("Aseguradora DEMO");
+  await dialog.locator('[name="documentNumber"]').fill("SOAT-777001");
+  await dialog.locator('[name="issuer"]').fill("Aseguradora Nacional");
   await dialog.locator('[name="issuedAt"]').fill("2026-10-23");
   await dialog.locator('[name="expiresAt"]').fill("2027-10-23");
-  await page.getByRole("button", { name: "Guardar registro DEMO" }).click();
+  await page.getByRole("button", { name: "Guardar registro" }).click();
   const row = page.getByRole("row").filter({ hasText: "TST-777" });
-  await expect(row).toContainText("Marca DEMO");
+  await expect(row).toContainText("Renault");
   await row.getByRole("link", { name: "Abrir ficha" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "TST-777" })).toBeVisible();
-  await expect(page.getByText("SOAT-DEMO-777")).toBeVisible();
+  await expect(page.getByText("SOAT-777001")).toBeVisible();
   await expect(page.getByText("Pendiente", { exact: true })).toBeVisible();
 });
 
 test("muestra exactamente cinco categorías y permite abrir su flota", async ({ page }) => {
-  await page.goto("/demo/categorias", { waitUntil: "domcontentloaded" });
+  await page.goto("/panel/categorias", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("link", { name: /Ver y administrar flota/ })).toHaveCount(5);
   await expect(page.getByText("Buses intermunicipales")).toHaveCount(0);
   await page.getByRole("link", { name: /Taxis/ }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Taxis" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Registrar vehículo" })).toBeVisible();
+});
+
+test("recalcula la vigencia cuando cambia la fecha de análisis", async ({ page }) => {
+  await page.goto("/panel/alertas", { waitUntil: "domcontentloaded" });
+  await expect(page.locator('[data-demo-hydrated="true"]')).toBeVisible();
+  const row = page.getByRole("row").filter({ hasText: "SOAT-830194" });
+  await expect(row).toContainText("Vigente");
+  const cutoffField = page.getByLabel("Fecha de análisis");
+  const currentCutoff = await cutoffField.inputValue();
+  const expiredCutoff = new Date(`${currentCutoff}T12:00:00Z`);
+  expiredCutoff.setUTCDate(expiredCutoff.getUTCDate() + 61);
+  const expiredCutoffKey = expiredCutoff.toISOString().slice(0, 10);
+  await cutoffField.fill(expiredCutoffKey);
+  await expect(row).toContainText("Vencido");
+  await expect(page.getByText(/Vigencias calculadas con fecha de corte/)).toBeVisible();
 });

@@ -7,11 +7,11 @@
 - Fechas civiles sin desplazamiento UTC/Bogotá, con regresiones de mes, año y año bisiesto.
 - Separación de funciones documental: versión pendiente, revisión por otro usuario autorizado, rechazo motivado y auditoría.
 - Alertas con fecha lógica, recuperación configurable, trazabilidad, restricción idempotente y bloqueo concurrente diseñado para PostgreSQL.
-- Aplicación visual local separada, sin PostgreSQL, con dashboard, flota, cinco categorías, documentos, alertas, renovaciones, propietarios, conductores, reportes y configuración.
-- Navegación responsive del entorno DEMO con menú móvil y datos ficticios persistidos únicamente en `localStorage`.
-- Registro DEMO de vehículo con primer documento y fechas; nuevos documentos desde la ficha por placa.
+- Panel local de evaluación separado, sin PostgreSQL, con dashboard, flota, cinco categorías, documentos, alertas, renovaciones, propietarios, conductores, reportes y configuración.
+- Navegación responsive con menú móvil y datos de prueba persistidos únicamente en `localStorage`.
+- Registro local de vehículo con primer documento y fechas; nuevos documentos desde la ficha por placa.
 - Filtros de vehículos, documentos, alertas, renovaciones, propietarios y conductores.
-- Alertas DEMO calculadas por días restantes y flujo de renovación que crea una versión pendiente sin activar la nueva vigencia.
+- Alertas calculadas por días restantes, selector interactivo de fecha de análisis y flujo de renovación que crea una versión pendiente sin activar la nueva vigencia.
 - CRUD local de propietarios y alta/edición de conductores y licencias para validación de experiencia.
 
 ## Implementado pero pendiente de prueba integral

@@ -41,7 +41,7 @@ export function VehicleForm({ onClose, initialCategory = "" }: { onClose: () => 
     const issuedAt = String(form.get("issuedAt"));
     const expiresAt = String(form.get("expiresAt"));
     if (!/^[A-Z]{3}[0-9]{3}$/.test(plate)) return setError("La placa debe tener el formato ABC123.");
-    if (store.vehicles.some((vehicle) => vehicle.plate === plate)) return setError("Esta placa ya existe en la demostración.");
+    if (store.vehicles.some((vehicle) => vehicle.plate === plate)) return setError("Esta placa ya existe en el entorno local.");
     if (expiresAt < issuedAt) return setError("La fecha de vencimiento no puede ser anterior a la fecha de inicio.");
     const vehicle: DemoVehicle = {
       plate,
@@ -59,7 +59,7 @@ export function VehicleForm({ onClose, initialCategory = "" }: { onClose: () => 
     store.addVehicle(vehicle, {
       plate, type: String(form.get("documentType")), number: String(form.get("documentNumber")),
       issuer: String(form.get("issuer")), issuedAt, expiresAt, verificationStatus: "PENDING",
-      responsible: "Analista Demo", processStatus: "NONE",
+      responsible: "Analista local", processStatus: "NONE",
     });
     onClose();
   }
@@ -86,7 +86,7 @@ export function VehicleForm({ onClose, initialCategory = "" }: { onClose: () => 
         <Field label="Fecha de vencimiento"><input className="field" name="expiresAt" type="date" required/></Field>
       </div></section>
       {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</p>}
-      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><button type="button" className="btn-secondary" onClick={onClose}>Cancelar</button><button className="btn-primary" type="submit"><CheckCircle2 size={17}/>Guardar registro DEMO</button></div>
+      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><button type="button" className="btn-secondary" onClick={onClose}>Cancelar</button><button className="btn-primary" type="submit"><CheckCircle2 size={17}/>Guardar registro</button></div>
     </form>
   </Modal>;
 }
@@ -100,7 +100,7 @@ export function DocumentForm({ plate, onClose }: { plate: string; onClose: () =>
     const issuedAt = String(form.get("issuedAt"));
     const expiresAt = String(form.get("expiresAt"));
     if (expiresAt < issuedAt) return setError("La fecha de vencimiento no puede ser anterior al inicio.");
-    store.addDocument({ plate, type: String(form.get("type")), number: String(form.get("number")), issuer: String(form.get("issuer")), issuedAt, expiresAt, verificationStatus: "PENDING", responsible: "Analista Demo", processStatus: "NONE" });
+    store.addDocument({ plate, type: String(form.get("type")), number: String(form.get("number")), issuer: String(form.get("issuer")), issuedAt, expiresAt, verificationStatus: "PENDING", responsible: "Analista local", processStatus: "NONE" });
     onClose();
   }
   return <Modal title={`Agregar documento · ${plate}`} description="La nueva versión queda pendiente de revisión independiente." onClose={onClose}><form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
@@ -110,7 +110,7 @@ export function DocumentForm({ plate, onClose }: { plate: string; onClose: () =>
     <Field label="Fecha de inicio"><input className="field" name="issuedAt" type="date" defaultValue={today} required/></Field>
     <Field label="Fecha de vencimiento"><input className="field" name="expiresAt" type="date" required/></Field>
     {error && <p role="alert" className="sm:col-span-2 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</p>}
-    <div className="sm:col-span-2 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><button type="button" className="btn-secondary" onClick={onClose}>Cancelar</button><button className="btn-primary"><FilePlus2 size={17}/>Agregar documento DEMO</button></div>
+    <div className="sm:col-span-2 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><button type="button" className="btn-secondary" onClick={onClose}>Cancelar</button><button className="btn-primary"><FilePlus2 size={17}/>Agregar documento</button></div>
   </form></Modal>;
 }
 
@@ -123,7 +123,7 @@ export function OwnerForm({ owner, onClose }: { owner?: DemoOwner; onClose: () =
     if (owner) store.updateOwner({ ...data, id: owner.id }); else store.addOwner(data);
     onClose();
   }
-  return <Modal title={owner ? "Editar propietario" : "Nuevo propietario"} description="Directorio DEMO para asociar titulares a los vehículos." onClose={onClose}><form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
+  return <Modal title={owner ? "Editar propietario" : "Nuevo propietario"} description="Directorio local para asociar titulares a los vehículos." onClose={onClose}><form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
     <Field label="Tipo"><select className="field" name="type" defaultValue={owner?.type || "Persona natural"}><option>Persona natural</option><option>Persona jurídica</option></select></Field>
     <Field label="Identificación"><input className="field" name="identification" defaultValue={owner?.identification} required/></Field>
     <Field label="Nombre completo o razón social" span><input className="field" name="name" defaultValue={owner?.name} required/></Field>
@@ -146,7 +146,7 @@ export function DriverForm({ driver, onClose }: { driver?: DemoDriver; onClose: 
     if (driver) store.updateDriver({ ...data, id: driver.id }); else store.addDriver(data);
     onClose();
   }
-  return <Modal title={driver ? "Editar conductor y licencia" : "Registrar conductor"} description="Consulta y actualización local de la licencia en el entorno DEMO." onClose={onClose}><form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
+  return <Modal title={driver ? "Editar conductor y licencia" : "Registrar conductor"} description="Consulta y actualización local de la información de la licencia." onClose={onClose}><form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
     <Field label="Nombre completo" span><input className="field" name="name" defaultValue={driver?.name} required/></Field>
     <Field label="Cédula"><input className="field" name="identification" defaultValue={driver?.identification} required/></Field>
     <Field label="Número de licencia"><input className="field" name="license" defaultValue={driver?.license} required/></Field>
@@ -168,15 +168,15 @@ export function RenewalForm({ document, onClose }: { document: DemoDocument; onC
     const issuedAt = String(form.get("issuedAt"));
     const expiresAt = String(form.get("expiresAt"));
     if (expiresAt < issuedAt) return setError("El vencimiento no puede ser anterior al inicio.");
-    store.createRenewal({ ...document, number: String(form.get("number")), issuedAt, expiresAt, verificationStatus: "PENDING", processStatus: "NONE", responsible: "Analista Demo" }, { plate: document.plate, document: document.type, status: "COMPLETED", step: "Nueva versión pendiente de revisión", dueAt: expiresAt, responsible: "Analista Demo" });
+    store.createRenewal({ ...document, number: String(form.get("number")), issuedAt, expiresAt, verificationStatus: "PENDING", processStatus: "NONE", responsible: "Analista local" }, { plate: document.plate, document: document.type, status: "COMPLETED", step: "Nueva versión pendiente de revisión", dueAt: expiresAt, responsible: "Analista local" });
     onClose();
   }
   return <Modal title={`Renovar ${document.type}`} description={`${document.plate} · La vigencia anterior sigue activa hasta la aprobación de otra persona.`} onClose={onClose}><form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
     <Field label="Nuevo número" span><input className="field" name="number" placeholder="Número de la nueva versión" required/></Field>
     <Field label="Nueva fecha de inicio"><input className="field" name="issuedAt" type="date" defaultValue={today} required/></Field>
     <Field label="Nueva fecha de vencimiento"><input className="field" name="expiresAt" type="date" required/></Field>
-    <div className="sm:col-span-2 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900"><strong>Separación de funciones:</strong> esta acción prepara la renovación DEMO, pero no la aprueba ni reemplaza automáticamente la vigencia anterior.</div>
+    <div className="sm:col-span-2 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900"><strong>Separación de funciones:</strong> esta acción prepara la renovación, pero no la aprueba ni reemplaza automáticamente la vigencia anterior.</div>
     {error && <p role="alert" className="sm:col-span-2 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</p>}
-    <div className="sm:col-span-2 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><button type="button" className="btn-secondary" onClick={onClose}>Cancelar</button><button className="btn-primary"><RotateCcw size={17}/>Preparar renovación DEMO</button></div>
+    <div className="sm:col-span-2 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><button type="button" className="btn-secondary" onClick={onClose}>Cancelar</button><button className="btn-primary"><RotateCcw size={17}/>Preparar renovación</button></div>
   </form></Modal>;
 }

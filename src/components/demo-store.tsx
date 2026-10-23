@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { demoWorkspace } from "@/lib/demo-data";
 import type { DemoDocument, DemoDriver, DemoOwner, DemoRenewal, DemoVehicle, DemoWorkspace } from "@/lib/demo-types";
 
-const STORAGE_KEY = "autolegal-control-demo-v2";
+const STORAGE_KEY = "autolegal-control-evaluacion-v1";
 
 type DemoStore = DemoWorkspace & {
   hydrated: boolean;
@@ -69,15 +69,15 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       setWorkspace((current) => ({
         ...current,
         vehicles: [...current.vehicles, vehicle],
-        documents: [...current.documents, { ...document, id: nextId("demo-doc") }],
+        documents: [...current.documents, { ...document, id: nextId("local-doc") }],
         drivers: current.drivers.map((driver) => driver.id === vehicle.driverId ? { ...driver, vehicle: vehicle.plate } : driver),
       }));
     },
     addDocument(document) {
-      setWorkspace((current) => ({ ...current, documents: [...current.documents, { ...document, id: nextId("demo-doc") }] }));
+      setWorkspace((current) => ({ ...current, documents: [...current.documents, { ...document, id: nextId("local-doc") }] }));
     },
     addOwner(owner) {
-      setWorkspace((current) => ({ ...current, owners: [...current.owners, { ...owner, id: nextId("demo-owner") }] }));
+      setWorkspace((current) => ({ ...current, owners: [...current.owners, { ...owner, id: nextId("local-owner") }] }));
     },
     updateOwner(owner) {
       setWorkspace((current) => ({ ...current, owners: current.owners.map((item) => item.id === owner.id ? owner : item) }));
@@ -88,7 +88,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       return true;
     },
     addDriver(driver) {
-      setWorkspace((current) => ({ ...current, drivers: [...current.drivers, { ...driver, id: nextId("demo-driver") }] }));
+      setWorkspace((current) => ({ ...current, drivers: [...current.drivers, { ...driver, id: nextId("local-driver") }] }));
     },
     updateDriver(driver) {
       setWorkspace((current) => ({ ...current, drivers: current.drivers.map((item) => item.id === driver.id ? driver : item) }));
@@ -96,8 +96,8 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     createRenewal(document, renewal) {
       setWorkspace((current) => ({
         ...current,
-        documents: [...current.documents, { ...document, id: nextId("demo-doc") }],
-        renewals: [...current.renewals, { ...renewal, id: nextId("demo-renewal") }],
+        documents: [...current.documents, { ...document, id: nextId("local-doc") }],
+        renewals: [...current.renewals, { ...renewal, id: nextId("local-renewal") }],
       }));
     },
     resetDemo() {

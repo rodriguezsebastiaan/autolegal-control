@@ -4,51 +4,54 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
-  BarChart3, BellRing, CarFront, ChevronRight, FileCheck2, FolderCog,
-  LayoutDashboard, Menu, RefreshCcw, Settings, ShieldCheck, UserRound, UsersRound, X,
+  BarChart3, BellRing, CarFront, FileCheck2, FolderCog, LayoutDashboard, Menu,
+  RefreshCcw, RotateCcw, Settings, ShieldCheck, UserRound, UsersRound, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDemoStore } from "./demo-store";
 
-const demoLinks = [
-  { href: "/demo", label: "Resumen ejecutivo", icon: LayoutDashboard },
-  { href: "/demo/vehiculos", label: "Vehículos", icon: CarFront },
-  { href: "/demo/categorias", label: "Categorías", icon: FolderCog },
-  { href: "/demo/documentos", label: "Documentos", icon: FileCheck2 },
-  { href: "/demo/alertas", label: "Centro de alertas", icon: BellRing },
-  { href: "/demo/renovaciones", label: "Renovaciones", icon: RefreshCcw },
-  { href: "/demo/propietarios", label: "Propietarios", icon: UsersRound },
-  { href: "/demo/conductores", label: "Conductores", icon: UserRound },
-  { href: "/demo/reportes", label: "Reportes", icon: BarChart3 },
-  { href: "/demo/configuracion", label: "Configuración", icon: Settings },
+const navigation = [
+  { group: "INICIO", links: [{ href: "/panel", label: "Resumen ejecutivo", icon: LayoutDashboard }] },
+  { group: "GESTIÓN", links: [
+    { href: "/panel/vehiculos", label: "Vehículos", icon: CarFront },
+    { href: "/panel/categorias", label: "Categorías", icon: FolderCog },
+    { href: "/panel/documentos", label: "Documentos", icon: FileCheck2 },
+    { href: "/panel/propietarios", label: "Propietarios", icon: UsersRound },
+    { href: "/panel/conductores", label: "Conductores", icon: UserRound },
+  ] },
+  { group: "CONTROL", links: [
+    { href: "/panel/alertas", label: "Centro de alertas", icon: BellRing },
+    { href: "/panel/renovaciones", label: "Renovaciones", icon: RefreshCcw },
+    { href: "/panel/reportes", label: "Reportes", icon: BarChart3 },
+  ] },
+  { group: "SISTEMA", links: [{ href: "/panel/configuracion", label: "Configuración", icon: Settings }] },
 ];
 
-function DemoSidebar({ onNavigate }: { onNavigate?: () => void }) {
+const allLinks = navigation.flatMap((section) => section.links);
+
+function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
-  return <div className="flex h-full flex-col bg-[#071b2f] text-white">
-    <div className="border-b border-white/10 px-5 py-5">
-      <div className="flex items-center gap-3">
-        <span className="grid h-10 w-10 place-items-center rounded-xl bg-teal-400 text-[#071b2f]"><ShieldCheck size={22}/></span>
-        <div><p className="text-sm font-black tracking-wide">AUTOLEGAL</p><p className="text-[0.68rem] font-bold tracking-[0.22em] text-teal-300">CONTROL</p></div>
-      </div>
-      <div className="mt-4 rounded-xl border border-amber-300/25 bg-amber-300/10 px-3 py-2.5">
-        <p className="text-xs font-black text-amber-200">ENTORNO DEMO LOCAL</p>
-        <p className="mt-1 text-[0.68rem] leading-4 text-amber-100/75">Datos ficticios · Cambios solo en este navegador</p>
-      </div>
+  return <div className="flex h-full flex-col bg-[#0b1f33] text-white">
+    <div className="flex h-[76px] items-center border-b border-white/8 px-6">
+      <span className="mr-3 grid h-10 w-10 place-items-center rounded-lg bg-[#22b8a7] text-[#082133]"><ShieldCheck size={22}/></span>
+      <div><p className="text-[0.82rem] font-extrabold tracking-[0.08em]">AUTOLEGAL</p><p className="mt-0.5 text-[0.62rem] font-semibold tracking-[0.24em] text-teal-300">CONTROL</p></div>
     </div>
-    <nav aria-label="Módulos de demostración" className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-      {demoLinks.map(({ href, label, icon: Icon }) => {
-        const active = href === "/demo" ? pathname === href : pathname.startsWith(href);
-        return <Link onClick={onNavigate} key={href} href={href} className={cn(
-          "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition",
-          active ? "bg-teal-400 text-[#071b2f] shadow-lg shadow-teal-950/20" : "text-slate-300 hover:bg-white/8 hover:text-white",
-        )}><Icon size={18}/><span className="flex-1">{label}</span>{active && <ChevronRight size={15}/>}</Link>;
-      })}
+    <nav aria-label="Navegación principal" className="flex-1 overflow-y-auto px-3 py-5">
+      {navigation.map((section) => <div key={section.group} className="mb-5">
+        <p className="mb-2 px-3 text-[0.62rem] font-bold tracking-[0.16em] text-slate-500">{section.group}</p>
+        <div className="space-y-1">{section.links.map(({ href, label, icon: Icon }) => {
+          const active = href === "/panel" ? pathname === href : pathname.startsWith(href);
+          return <Link onClick={onNavigate} key={href} href={href} className={cn(
+            "relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-[0.86rem] font-medium transition-colors",
+            active ? "bg-white/10 text-white" : "text-slate-300 hover:bg-white/5 hover:text-white",
+          )}>{active && <span className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-teal-400"/>}<Icon size={17}/><span>{label}</span></Link>;
+        })}</div>
+      </div>)}
     </nav>
-    <div className="border-t border-white/10 p-4">
-      <div className="flex items-center gap-3 rounded-xl bg-white/5 px-3 py-3">
-        <span className="grid h-9 w-9 place-items-center rounded-full bg-teal-400/15 text-sm font-black text-teal-200">AD</span>
-        <div className="min-w-0"><p className="truncate text-sm font-bold">Analista Demo</p><p className="text-xs text-slate-400">Persistencia local temporal</p></div>
+    <div className="border-t border-white/8 p-4">
+      <div className="flex items-center gap-3 px-2 py-2">
+        <span className="grid h-9 w-9 place-items-center rounded-full bg-teal-400/15 text-xs font-bold text-teal-200">AU</span>
+        <div className="min-w-0"><p className="truncate text-sm font-semibold">Equipo Autolegal</p><p className="text-[0.7rem] text-slate-400">Entorno local</p></div>
       </div>
     </div>
   </div>;
@@ -56,21 +59,23 @@ function DemoSidebar({ onNavigate }: { onNavigate?: () => void }) {
 
 export function DemoShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
   const { resetDemo } = useDemoStore();
-  return <div className="min-h-screen">
-    <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 lg:block"><DemoSidebar/></aside>
+  const current = [...allLinks].sort((a, b) => b.href.length - a.href.length).find((link) => pathname === link.href || pathname.startsWith(`${link.href}/`));
+  return <div className="min-h-screen bg-[#f4f6f8]">
+    <aside className="fixed inset-y-0 left-0 z-30 hidden w-[268px] lg:block"><Sidebar/></aside>
     {open && <div className="fixed inset-0 z-40 lg:hidden">
-      <button aria-label="Cerrar menú" className="absolute inset-0 bg-slate-950/55 backdrop-blur-sm" onClick={() => setOpen(false)}/>
-      <aside className="relative h-full w-[min(88vw,19rem)] shadow-2xl"><button aria-label="Cerrar menú" onClick={() => setOpen(false)} className="absolute right-3 top-3 z-10 rounded-lg border border-white/10 p-2 text-white"><X size={18}/></button><DemoSidebar onNavigate={() => setOpen(false)}/></aside>
+      <button aria-label="Cerrar menú" className="absolute inset-0 bg-slate-950/50" onClick={() => setOpen(false)}/>
+      <aside className="relative h-full w-[min(88vw,18rem)] shadow-2xl"><button aria-label="Cerrar menú" onClick={() => setOpen(false)} className="absolute right-3 top-4 z-10 rounded-md border border-white/10 p-2 text-white"><X size={18}/></button><Sidebar onNavigate={() => setOpen(false)}/></aside>
     </div>}
-    <main className="min-h-screen lg:ml-72">
-      <div className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-slate-200/80 bg-white/90 px-4 backdrop-blur-lg sm:px-6 lg:px-8">
-        <button aria-label="Abrir menú" onClick={() => setOpen(true)} className="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-700 lg:hidden"><Menu size={19}/></button>
-        <div><p className="text-xs font-black uppercase tracking-[0.13em] text-teal-700">Autolegal · DEMO</p><p className="hidden text-xs text-slate-500 sm:block">Evaluación visual y funcional sin base de datos</p></div>
-        <button onClick={() => { if (window.confirm("¿Restaurar todos los datos ficticios de la demostración?")) resetDemo(); }} className="ml-auto hidden rounded-lg px-3 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-100 sm:block">Restaurar datos</button>
-        <span className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-800 ring-1 ring-amber-200"><span className="h-2 w-2 rounded-full bg-amber-500"/>Modo DEMO local</span>
-      </div>
-      <div className="p-4 sm:p-6 lg:p-8">{children}</div>
+    <main className="min-h-screen lg:ml-[268px]">
+      <header className="sticky top-0 z-20 flex h-[76px] items-center gap-3 border-b border-slate-200 bg-white/95 px-4 backdrop-blur sm:px-6 lg:px-8">
+        <button aria-label="Abrir menú" onClick={() => setOpen(true)} className="rounded-lg border border-slate-200 bg-white p-2.5 text-slate-700 lg:hidden"><Menu size={19}/></button>
+        <div><p className="text-sm font-semibold text-slate-900">{current?.label || "Panel administrativo"}</p><p className="hidden text-xs text-slate-500 sm:block">Control documental y gestión de flota</p></div>
+        <button onClick={() => { if (window.confirm("¿Restaurar los datos iniciales de este entorno local?")) resetDemo(); }} className="ml-auto hidden items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 sm:inline-flex"><RotateCcw size={14}/>Restaurar datos</button>
+        <span className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[0.7rem] font-semibold text-slate-600"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500"/>Entorno local</span>
+      </header>
+      <div className="mx-auto w-full max-w-[1540px] p-4 sm:p-6 lg:p-8 xl:p-10">{children}</div>
     </main>
   </div>;
 }

@@ -13,10 +13,10 @@ export function PageHeader({
   action?: React.ReactNode;
 }) {
   return (
-    <header className="mb-7 flex flex-wrap items-end justify-between gap-4">
+    <header className="mb-7 flex flex-wrap items-center justify-between gap-5">
       <div>
         {eyebrow && <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.17em] text-teal-700">{eyebrow}</p>}
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">{title}</h1>
+        <h1 className="text-[1.75rem] font-semibold tracking-[-0.025em] text-slate-950 sm:text-[2rem]">{title}</h1>
         {description && <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">{description}</p>}
       </div>
       {action}
@@ -34,14 +34,14 @@ export function MetricCard({ label, value, icon: Icon, tone = "teal", hint }: {
     red: "bg-red-50 text-red-700",
   };
   return (
-    <article className="card p-5">
+    <article className="card p-5 sm:p-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</p>
-          <p className="mt-3 text-3xl font-bold text-slate-900">{value}</p>
+          <p className="text-[0.7rem] font-bold uppercase tracking-[0.08em] text-slate-500">{label}</p>
+          <p className="mt-3 text-[1.75rem] font-semibold tracking-tight text-slate-950">{value}</p>
           {hint && <p className="mt-2 text-xs text-slate-500">{hint}</p>}
         </div>
-        <span className={cn("rounded-xl p-2.5", tones[tone])}><Icon size={20} /></span>
+        <span className={cn("rounded-lg p-2.5", tones[tone])}><Icon size={19} /></span>
       </div>
     </article>
   );

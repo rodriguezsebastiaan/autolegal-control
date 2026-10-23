@@ -27,18 +27,20 @@ El avance detallado y las siguientes fases están en [docs/ESTADO.md](docs/ESTAD
 - npm 10 o superior.
 - PostgreSQL 16. Docker Compose es opcional; se incluye como método recomendado, pero Docker no viene incluido con este repositorio.
 
-## Demostración visual sin base de datos
+## Panel local de evaluación sin base de datos
 
 Para revisar el diseño en Windows sin instalar PostgreSQL, ejecuta:
 
 ```powershell
 npm install
-npm run demo
+npm run panel
 ```
 
-Abre `http://127.0.0.1:3000/demo`. La demostración es una aplicación de desarrollo separada, enlazada únicamente a la interfaz local, con datos ficticios marcados como `DEMO`. Permite registrar vehículos y documentos, filtrar expedientes, simular renovaciones y editar propietarios o conductores; todos esos cambios permanecen exclusivamente en el `localStorage` del navegador. No necesita `.env`, credenciales, migraciones ni seed y no expone acciones de escritura de la aplicación real.
+Abre `http://127.0.0.1:3000/panel`. Es una aplicación de desarrollo separada y enlazada únicamente a la interfaz local. Permite registrar vehículos y documentos, filtrar expedientes, comprobar vigencias con distintas fechas de análisis, preparar renovaciones y editar propietarios o conductores. Todos esos cambios permanecen exclusivamente en el `localStorage` del navegador. No necesita `.env`, credenciales, migraciones ni seed y no expone acciones de escritura de la aplicación real.
 
-El build productivo principal no contiene las rutas del proyecto `demo-app`. El guard adicional `AUTOLEGAL_LOCAL_DEMO=enabled` solo lo establece `npm run demo` y además exige `NODE_ENV=development`.
+No uses todavía información personal sensible ni documentos privados: el panel local sirve para validar la experiencia y las reglas, pero aún no cuenta con la autenticación y el almacenamiento privado del entorno operativo.
+
+El build productivo principal no contiene las rutas del proyecto `demo-app`. El guard adicional `AUTOLEGAL_LOCAL_DEMO=enabled` solo lo establece `npm run panel` y además exige `NODE_ENV=development`. La antigua ruta `/demo` redirige localmente a `/panel` para conservar compatibilidad.
 
 ## Instalación local
 
