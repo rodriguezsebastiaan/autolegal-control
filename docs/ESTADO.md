@@ -7,6 +7,8 @@
 - Fechas civiles sin desplazamiento UTC/Bogotá, con regresiones de mes, año y año bisiesto.
 - Separación de funciones documental: versión pendiente, revisión por otro usuario autorizado, rechazo motivado y auditoría.
 - Alertas con fecha lógica, recuperación configurable, trazabilidad, restricción idempotente y bloqueo concurrente diseñado para PostgreSQL.
+- Aplicación visual local separada, sin PostgreSQL, con dashboard, flota, seis categorías, documentos, alertas, renovaciones, propietarios, empresas, conductores, reportes y configuración.
+- Navegación responsive del entorno DEMO con menú móvil y datos ficticios de solo lectura.
 
 ## Implementado pero pendiente de prueba integral
 
@@ -18,7 +20,7 @@
 - Documentos: alta, propuesta de actualización, revisión/rechazo, historial de versiones y cálculo de vigencia.
 - Reglas y eventos internos de alertas con recuperación.
 - Centro de alertas, revisión de eventos y CSV de vehículos/documentos.
-- Auditoría inicial y modo demo con datos ficticios identificados.
+- Auditoría inicial y seed operativo con datos ficticios identificados.
 
 ## Preparado pero pendiente de ampliar
 

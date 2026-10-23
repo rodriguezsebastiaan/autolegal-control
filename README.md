@@ -27,6 +27,19 @@ El avance detallado y las siguientes fases están en [docs/ESTADO.md](docs/ESTAD
 - npm 10 o superior.
 - PostgreSQL 16. Docker Compose es opcional; se incluye como método recomendado, pero Docker no viene incluido con este repositorio.
 
+## Demostración visual sin base de datos
+
+Para revisar el diseño en Windows sin instalar PostgreSQL, ejecuta:
+
+```powershell
+npm install
+npm run demo
+```
+
+Abre `http://127.0.0.1:3000/demo`. La demostración es una aplicación de desarrollo separada, enlazada únicamente a la interfaz local, con datos ficticios marcados como `DEMO` y sin acciones de escritura. No necesita `.env`, credenciales, migraciones ni seed.
+
+El build productivo principal no contiene las rutas del proyecto `demo-app`. El guard adicional `AUTOLEGAL_LOCAL_DEMO=enabled` solo lo establece `npm run demo` y además exige `NODE_ENV=development`.
+
 ## Instalación local
 
 1. Instala dependencias:
@@ -92,12 +105,18 @@ npm run typecheck
 npm run lint
 npm test
 npm run build
+npm run test:demo
 ```
 
-Las pruebas E2E requieren una base preparada y el seed aplicado:
+`npm run test:demo` no requiere base de datos. La primera vez necesita el navegador local de Playwright:
 
 ```bash
 npx playwright install chromium
+```
+
+Las pruebas E2E del entorno operativo sí requieren una base preparada y el seed aplicado:
+
+```bash
 npm run test:e2e
 ```
 
