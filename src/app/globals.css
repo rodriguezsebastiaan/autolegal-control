@@ -36,6 +36,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 
 .field {
   width: 100%;
+  min-height: 2.75rem;
   border: 1px solid #cdd9df;
   border-radius: 0.5rem;
   background: white;
@@ -44,6 +45,10 @@ button, a { -webkit-tap-highlight-color: transparent; }
   outline: none;
   transition: border-color 150ms, box-shadow 150ms, background-color 150ms;
 }
+.field:hover:not(:disabled) { border-color: #aebdc6; }
+.field:disabled { cursor: not-allowed; background: #f1f5f7; color: #64748b; opacity: 1; }
+.field::placeholder { color: #94a3b8; }
+input.field, select.field { height: 2.75rem; }
 .field:focus {
   border-color: var(--teal-500);
   box-shadow: 0 0 0 3px rgba(19, 184, 166, 0.13);

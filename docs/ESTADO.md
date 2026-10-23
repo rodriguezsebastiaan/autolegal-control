@@ -12,6 +12,7 @@
 - Registro local de vehículo con primer documento y fechas; nuevos documentos desde la ficha por placa.
 - Estado operativo manual por vehículo (`Activo`, `Mantenimiento` o `Inactivo`), con motivo y fecha de actualización; filtro por estado y resumen de flota. Los inactivos conservan su historial, pero se excluyen de las alertas operativas.
 - Filtros de vehículos, documentos, alertas, renovaciones, propietarios y conductores.
+- Barras de filtros unificadas con etiquetas visibles, controles alineados, conteo de resultados y distribución responsive sin desbordamiento.
 - Alertas calculadas por días restantes y selector interactivo de fecha de análisis.
 - Renovación local en dos etapas: registro pendiente, revisión por una persona diferente y activación de la nueva vigencia. Al aprobar, la versión anterior queda histórica, deja de generar alertas y el conteo comienza desde el nuevo vencimiento.
 - CRUD local de propietarios y alta/edición de conductores y licencias para validación de experiencia.

@@ -112,7 +112,7 @@ test("permite cambiar manualmente el estado operativo de un vehículo", async ({
   await page.goto("/panel/alertas");
   await expect(page.getByRole("row").filter({ hasText: "ABC-123" })).toHaveCount(0);
   await page.goto("/panel/vehiculos");
-  await page.getByLabel("Filtrar estado operativo").selectOption("INACTIVE");
+  await page.getByLabel("Estado operativo").selectOption("INACTIVE");
   await expect(page.getByRole("row").filter({ hasText: "ABC-123" })).toBeVisible();
 });
 
@@ -145,4 +145,24 @@ test("una renovación aprobada reemplaza la vigencia anterior y reinicia las ale
   await expect(renewedDocument).toContainText("Verificado");
   const historicalDocument = page.getByRole("row").filter({ hasText: "RTM-410258" });
   await expect(historicalDocument).toContainText("Histórica");
+});
+
+test("las barras de filtros mantienen alineación y no desbordan", async ({ page }) => {
+  for (const route of ["/panel/vehiculos", "/panel/documentos", "/panel/alertas", "/panel/renovaciones", "/panel/propietarios", "/panel/conductores"]) {
+    await page.goto(route, { waitUntil: "domcontentloaded" });
+    const toolbar = page.getByTestId("filter-bar");
+    await expect(toolbar).toBeVisible();
+    const layout = await toolbar.evaluate((element) => {
+      const controls = [...element.querySelectorAll("input, select")].map((control) => control.getBoundingClientRect());
+      const bounds = element.getBoundingClientRect();
+      return {
+        overflows: element.scrollWidth > element.clientWidth + 1,
+        controlsInside: controls.every((control) => control.left >= bounds.left - 1 && control.right <= bounds.right + 1),
+        heights: controls.map((control) => Math.round(control.height)),
+      };
+    });
+    expect(layout.overflows, `${route} no debe tener desbordamiento horizontal`).toBe(false);
+    expect(layout.controlsInside, `${route} debe contener todos los campos`).toBe(true);
+    expect(new Set(layout.heights).size, `${route} debe usar controles de igual altura`).toBeLessThanOrEqual(1);
+  }
 });
