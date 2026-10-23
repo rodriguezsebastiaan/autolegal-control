@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
-import { CheckCircle2, FilePlus2, RotateCcw, UserPlus, X } from "lucide-react";
+import { CheckCircle2, FilePlus2, RotateCcw, ShieldCheck, UserPlus, Wrench, X } from "lucide-react";
 import { demoCategories } from "@/lib/demo-data";
-import type { DemoDocument, DemoDriver, DemoOwner, DemoVehicle } from "@/lib/demo-types";
+import type { DemoDocument, DemoDriver, DemoOwner, DemoVehicle, DemoVehicleStatus } from "@/lib/demo-types";
 import { bogotaToday } from "@/lib/dates";
 import { useDemoStore } from "./demo-store";
 
@@ -54,7 +54,7 @@ export function VehicleForm({ onClose, initialCategory = "" }: { onClose: () => 
       service: String(form.get("service")),
       ownerId: String(form.get("ownerId")),
       driverId: String(form.get("driverId")) || null,
-      status: "ACTIVE",
+      status: String(form.get("status")) as DemoVehicleStatus,
     };
     store.addVehicle(vehicle, {
       plate, type: String(form.get("documentType")), number: String(form.get("documentNumber")),
@@ -74,6 +74,7 @@ export function VehicleForm({ onClose, initialCategory = "" }: { onClose: () => 
         <Field label="Línea"><input className="field" name="line" placeholder="Ej. NPR" required/></Field>
         <Field label="Modelo"><input className="field" name="year" type="number" min="1950" max="2100" defaultValue={new Date().getFullYear()} required/></Field>
         <Field label="Color"><input className="field" name="color" placeholder="Ej. Blanco" required/></Field>
+        <Field label="Estado operativo"><select className="field" name="status" defaultValue="ACTIVE"><option value="ACTIVE">Activo</option><option value="MAINTENANCE">Mantenimiento</option><option value="INACTIVE">Inactivo</option></select></Field>
         <Field label="Propietario"><select className="field" name="ownerId" required><option value="" disabled>Selecciona el propietario</option>{store.owners.map((owner) => <option key={owner.id} value={owner.id}>{owner.name}</option>)}</select></Field>
         <Field label="Conductor asignado (opcional)"><select className="field" name="driverId" defaultValue=""><option value="">Sin asignar</option>{store.drivers.map((driver) => <option key={driver.id} value={driver.id}>{driver.name}</option>)}</select></Field>
       </div></section>
@@ -89,6 +90,46 @@ export function VehicleForm({ onClose, initialCategory = "" }: { onClose: () => 
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><button type="button" className="btn-secondary" onClick={onClose}>Cancelar</button><button className="btn-primary" type="submit"><CheckCircle2 size={17}/>Guardar registro</button></div>
     </form>
   </Modal>;
+}
+
+export function VehicleStatusForm({ vehicle, onClose }: { vehicle: DemoVehicle; onClose: () => void }) {
+  const store = useDemoStore();
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    store.updateVehicleStatus(vehicle.plate, String(form.get("status")) as DemoVehicleStatus, String(form.get("note")));
+    onClose();
+  }
+  return <Modal title={`Cambiar estado · ${vehicle.plate}`} description="El estado operativo es manual y no depende de los vencimientos documentales." onClose={onClose}><form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
+    <Field label="Nuevo estado" span><select className="field" name="status" defaultValue={vehicle.status}><option value="ACTIVE">Activo</option><option value="MAINTENANCE">Mantenimiento</option><option value="INACTIVE">Inactivo</option></select></Field>
+    <Field label="Motivo o novedad" span><textarea className="field min-h-24 resize-y" name="note" defaultValue={vehicle.statusNote} placeholder="Ej. Ingreso a mantenimiento preventivo" required/></Field>
+    <div className="sm:col-span-2 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600"><strong>Control manual:</strong> utiliza “Activo” cuando el vehículo opera normalmente, “Mantenimiento” cuando está temporalmente fuera de servicio e “Inactivo” cuando ya no debe considerarse operativo. Los vehículos inactivos dejan de generar alertas operativas; sus documentos e historial se conservan.</div>
+    <div className="sm:col-span-2 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><button type="button" className="btn-secondary" onClick={onClose}>Cancelar</button><button className="btn-primary"><Wrench size={17}/>Actualizar estado</button></div>
+  </form></Modal>;
+}
+
+export function DocumentReviewForm({ document, onClose }: { document: DemoDocument; onClose: () => void }) {
+  const store = useDemoStore();
+  const [error, setError] = useState("");
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
+    const decision = submitter?.value === "REJECT" ? "REJECT" : "APPROVE";
+    const reviewer = String(form.get("reviewer") || "").trim();
+    const reason = String(form.get("reason") || "").trim();
+    if (decision === "REJECT" && !reason) return setError("Debes registrar el motivo del rechazo.");
+    if (!store.reviewDocument(document.id, decision, reviewer, reason)) return setError("La persona que registró el documento no puede aprobarlo ni rechazarlo.");
+    onClose();
+  }
+  return <Modal title={`Verificar ${document.type}`} description={`${document.plate} · ${document.number}`} onClose={onClose}><form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
+    <div className="sm:col-span-2 grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm sm:grid-cols-3"><div><span className="label">Registrado por</span><strong>{document.responsible}</strong></div><div><span className="label">Inicio</span><strong>{document.issuedAt}</strong></div><div><span className="label">Vencimiento</span><strong>{document.expiresAt}</strong></div></div>
+    <Field label="Revisor autorizado" span><input className="field" name="reviewer" defaultValue="Supervisor local" required/></Field>
+    <Field label="Motivo del rechazo (solo si aplica)" span><textarea className="field min-h-24 resize-y" name="reason" placeholder="Describe la inconsistencia encontrada"/></Field>
+    <div className="sm:col-span-2 rounded-lg border border-teal-200 bg-teal-50 p-4 text-sm text-teal-900"><strong>Al aprobar:</strong> esta versión reemplazará la vigencia anterior y el conteo de alertas comenzará desde la nueva fecha de vencimiento.</div>
+    {error && <p role="alert" className="sm:col-span-2 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</p>}
+    <div className="sm:col-span-2 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><button type="button" className="btn-secondary" onClick={onClose}>Cancelar</button><button type="submit" name="decision" value="REJECT" className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-200 bg-white px-4 py-2.5 text-sm font-bold text-red-700 hover:bg-red-50">Rechazar</button><button type="submit" name="decision" value="APPROVE" className="btn-primary"><ShieldCheck size={17}/>Aprobar y activar vigencia</button></div>
+  </form></Modal>;
 }
 
 export function DocumentForm({ plate, onClose }: { plate: string; onClose: () => void }) {
@@ -168,7 +209,7 @@ export function RenewalForm({ document, onClose }: { document: DemoDocument; onC
     const issuedAt = String(form.get("issuedAt"));
     const expiresAt = String(form.get("expiresAt"));
     if (expiresAt < issuedAt) return setError("El vencimiento no puede ser anterior al inicio.");
-    store.createRenewal({ ...document, number: String(form.get("number")), issuedAt, expiresAt, verificationStatus: "PENDING", processStatus: "NONE", responsible: "Analista local" }, { plate: document.plate, document: document.type, status: "COMPLETED", step: "Nueva versión pendiente de revisión", dueAt: expiresAt, responsible: "Analista local" });
+    store.createRenewal({ ...document, number: String(form.get("number")), issuedAt, expiresAt, verificationStatus: "PENDING", processStatus: "NONE", responsible: "Analista local", isCurrent: false, replacesDocumentId: document.id, reviewedBy: undefined, rejectionReason: undefined }, { plate: document.plate, document: document.type, status: "PENDING", step: "Nueva versión pendiente de verificación", dueAt: expiresAt, responsible: "Analista local", sourceDocumentId: document.id });
     onClose();
   }
   return <Modal title={`Renovar ${document.type}`} description={`${document.plate} · La vigencia anterior sigue activa hasta la aprobación de otra persona.`} onClose={onClose}><form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">

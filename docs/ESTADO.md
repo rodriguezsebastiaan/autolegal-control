@@ -10,8 +10,10 @@
 - Panel local de evaluación separado, sin PostgreSQL, con dashboard, flota, cinco categorías, documentos, alertas, renovaciones, propietarios, conductores, reportes y configuración.
 - Navegación responsive con menú móvil y datos de prueba persistidos únicamente en `localStorage`.
 - Registro local de vehículo con primer documento y fechas; nuevos documentos desde la ficha por placa.
+- Estado operativo manual por vehículo (`Activo`, `Mantenimiento` o `Inactivo`), con motivo y fecha de actualización; filtro por estado y resumen de flota. Los inactivos conservan su historial, pero se excluyen de las alertas operativas.
 - Filtros de vehículos, documentos, alertas, renovaciones, propietarios y conductores.
-- Alertas calculadas por días restantes, selector interactivo de fecha de análisis y flujo de renovación que crea una versión pendiente sin activar la nueva vigencia.
+- Alertas calculadas por días restantes y selector interactivo de fecha de análisis.
+- Renovación local en dos etapas: registro pendiente, revisión por una persona diferente y activación de la nueva vigencia. Al aprobar, la versión anterior queda histórica, deja de generar alertas y el conteo comienza desde el nuevo vencimiento.
 - CRUD local de propietarios y alta/edición de conductores y licencias para validación de experiencia.
 
 ## Implementado pero pendiente de prueba integral

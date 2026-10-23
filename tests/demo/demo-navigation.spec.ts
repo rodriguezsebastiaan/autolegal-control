@@ -91,3 +91,58 @@ test("recalcula la vigencia cuando cambia la fecha de análisis", async ({ page 
   await expect(row).toContainText("Vencido");
   await expect(page.getByText(/Vigencias calculadas con fecha de corte/)).toBeVisible();
 });
+
+test("permite cambiar manualmente el estado operativo de un vehículo", async ({ page }) => {
+  await page.goto("/panel/vehiculos/ABC123", { waitUntil: "domcontentloaded" });
+  await expect(page.locator('[data-demo-hydrated="true"]')).toBeVisible();
+  await expect(page.getByText("Activo", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Cambiar estado" }).click();
+  const dialog = page.getByRole("dialog", { name: /Cambiar estado/ });
+  await dialog.locator('[name="status"]').selectOption("MAINTENANCE");
+  await dialog.locator('[name="note"]').fill("Mantenimiento preventivo programado");
+  await dialog.getByRole("button", { name: "Actualizar estado" }).click();
+  await expect(page.getByText("Mantenimiento", { exact: true })).toBeVisible();
+  await expect(page.getByText("Mantenimiento preventivo programado")).toBeVisible();
+  await page.getByRole("button", { name: "Cambiar estado" }).click();
+  const secondDialog = page.getByRole("dialog", { name: /Cambiar estado/ });
+  await secondDialog.locator('[name="status"]').selectOption("INACTIVE");
+  await secondDialog.locator('[name="note"]').fill("Vehículo retirado temporalmente de operación");
+  await secondDialog.getByRole("button", { name: "Actualizar estado" }).click();
+  await expect(page.getByText("Inactivo", { exact: true })).toBeVisible();
+  await page.goto("/panel/alertas");
+  await expect(page.getByRole("row").filter({ hasText: "ABC-123" })).toHaveCount(0);
+  await page.goto("/panel/vehiculos");
+  await page.getByLabel("Filtrar estado operativo").selectOption("INACTIVE");
+  await expect(page.getByRole("row").filter({ hasText: "ABC-123" })).toBeVisible();
+});
+
+test("una renovación aprobada reemplaza la vigencia anterior y reinicia las alertas", async ({ page }) => {
+  await page.goto("/panel/renovaciones", { waitUntil: "domcontentloaded" });
+  await expect(page.locator('[data-demo-hydrated="true"]')).toBeVisible();
+  const currentRow = page.getByRole("row").filter({ hasText: "RTM-410258" });
+  await currentRow.getByRole("button", { name: "Registrar renovación" }).click();
+  const renewalDialog = page.getByRole("dialog", { name: /Renovar Revisión técnico-mecánica/ });
+  await renewalDialog.locator('[name="number"]').fill("RTM-RENOVADA-001");
+  const issuedAt = await renewalDialog.locator('[name="issuedAt"]').inputValue();
+  const expiry = new Date(`${issuedAt}T12:00:00Z`);
+  expiry.setUTCDate(expiry.getUTCDate() + 365);
+  await renewalDialog.locator('[name="expiresAt"]').fill(expiry.toISOString().slice(0, 10));
+  await renewalDialog.getByRole("button", { name: "Preparar renovación" }).click();
+
+  const pendingRow = page.getByRole("row").filter({ hasText: "RTM-RENOVADA-001" });
+  await expect(pendingRow).toBeVisible();
+  await pendingRow.getByRole("button", { name: "Revisar" }).click();
+  const reviewDialog = page.getByRole("dialog", { name: /Verificar Revisión técnico-mecánica/ });
+  await reviewDialog.getByRole("button", { name: "Aprobar y activar vigencia" }).click();
+
+  await page.goto("/panel/alertas");
+  const renewedAlert = page.getByRole("row").filter({ hasText: "RTM-RENOVADA-001" });
+  await expect(renewedAlert).toContainText("Vigente");
+  await expect(page.getByText("RTM-410258", { exact: true })).toHaveCount(0);
+  await page.goto("/panel/documentos");
+  const renewedDocument = page.getByRole("row").filter({ hasText: "RTM-RENOVADA-001" });
+  await expect(renewedDocument).toContainText("Actual");
+  await expect(renewedDocument).toContainText("Verificado");
+  const historicalDocument = page.getByRole("row").filter({ hasText: "RTM-410258" });
+  await expect(historicalDocument).toContainText("Histórica");
+});

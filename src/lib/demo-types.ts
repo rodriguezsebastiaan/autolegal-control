@@ -1,4 +1,4 @@
-export type DemoVehicleStatus = "ACTIVE" | "MAINTENANCE";
+export type DemoVehicleStatus = "ACTIVE" | "MAINTENANCE" | "INACTIVE";
 
 export type DemoVehicle = {
   plate: string;
@@ -12,6 +12,8 @@ export type DemoVehicle = {
   ownerId: string;
   driverId: string | null;
   service: string;
+  statusNote?: string;
+  statusUpdatedAt?: string;
 };
 
 export type DemoDocument = {
@@ -25,6 +27,10 @@ export type DemoDocument = {
   verificationStatus: "PENDING" | "VERIFIED" | "REJECTED";
   responsible: string;
   processStatus: "NONE" | "IN_RENEWAL" | "AWAITING_PAYMENT";
+  isCurrent?: boolean;
+  replacesDocumentId?: string;
+  reviewedBy?: string;
+  rejectionReason?: string;
 };
 
 export type DemoOwner = {
@@ -51,10 +57,12 @@ export type DemoRenewal = {
   id: string;
   plate: string;
   document: string;
-  status: "PENDING" | "IN_PROGRESS" | "AWAITING_PAYMENT" | "COMPLETED";
+  status: "PENDING" | "IN_PROGRESS" | "AWAITING_PAYMENT" | "COMPLETED" | "REJECTED";
   step: string;
   dueAt: string;
   responsible: string;
+  sourceDocumentId?: string;
+  newDocumentId?: string;
 };
 
 export type DemoCategory = {

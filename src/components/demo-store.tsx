@@ -2,13 +2,15 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { demoWorkspace } from "@/lib/demo-data";
-import type { DemoDocument, DemoDriver, DemoOwner, DemoRenewal, DemoVehicle, DemoWorkspace } from "@/lib/demo-types";
+import type { DemoDocument, DemoDriver, DemoOwner, DemoRenewal, DemoVehicle, DemoVehicleStatus, DemoWorkspace } from "@/lib/demo-types";
+import { bogotaToday } from "@/lib/dates";
 
-const STORAGE_KEY = "autolegal-control-evaluacion-v1";
+const STORAGE_KEY = "autolegal-control-evaluacion-v2";
 
 type DemoStore = DemoWorkspace & {
   hydrated: boolean;
   addVehicle: (vehicle: DemoVehicle, document: Omit<DemoDocument, "id">) => void;
+  updateVehicleStatus: (plate: string, status: DemoVehicleStatus, note: string) => void;
   addDocument: (document: Omit<DemoDocument, "id">) => void;
   addOwner: (owner: Omit<DemoOwner, "id">) => void;
   updateOwner: (owner: DemoOwner) => void;
@@ -16,6 +18,7 @@ type DemoStore = DemoWorkspace & {
   addDriver: (driver: Omit<DemoDriver, "id">) => void;
   updateDriver: (driver: DemoDriver) => void;
   createRenewal: (document: Omit<DemoDocument, "id">, renewal: Omit<DemoRenewal, "id">) => void;
+  reviewDocument: (documentId: string, decision: "APPROVE" | "REJECT", reviewer: string, reason?: string) => boolean;
   resetDemo: () => void;
 };
 
@@ -73,6 +76,14 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         drivers: current.drivers.map((driver) => driver.id === vehicle.driverId ? { ...driver, vehicle: vehicle.plate } : driver),
       }));
     },
+    updateVehicleStatus(plate, status, note) {
+      setWorkspace((current) => ({
+        ...current,
+        vehicles: current.vehicles.map((vehicle) => vehicle.plate === plate
+          ? { ...vehicle, status, statusNote: note, statusUpdatedAt: bogotaToday() }
+          : vehicle),
+      }));
+    },
     addDocument(document) {
       setWorkspace((current) => ({ ...current, documents: [...current.documents, { ...document, id: nextId("local-doc") }] }));
     },
@@ -94,11 +105,40 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       setWorkspace((current) => ({ ...current, drivers: current.drivers.map((item) => item.id === driver.id ? driver : item) }));
     },
     createRenewal(document, renewal) {
+      const documentId = nextId("local-doc");
       setWorkspace((current) => ({
         ...current,
-        documents: [...current.documents, { ...document, id: nextId("local-doc") }],
-        renewals: [...current.renewals, { ...renewal, id: nextId("local-renewal") }],
+        documents: [...current.documents, { ...document, id: documentId, isCurrent: false }],
+        renewals: [...current.renewals, { ...renewal, id: nextId("local-renewal"), newDocumentId: documentId, sourceDocumentId: document.replacesDocumentId }],
       }));
+    },
+    reviewDocument(documentId, decision, reviewer, reason) {
+      const candidate = workspace.documents.find((document) => document.id === documentId);
+      const reviewerName = reviewer.trim();
+      const rejectionReason = reason?.trim();
+      if (!candidate || candidate.verificationStatus !== "PENDING" || !reviewerName || reviewerName.toLowerCase() === candidate.responsible.trim().toLowerCase() || (decision === "REJECT" && !rejectionReason)) return false;
+      setWorkspace((current) => ({
+        ...current,
+        documents: current.documents.map((document) => {
+          if (document.id === documentId) return {
+            ...document,
+            verificationStatus: decision === "APPROVE" ? "VERIFIED" : "REJECTED",
+            isCurrent: decision === "APPROVE",
+            reviewedBy: reviewerName,
+            rejectionReason: decision === "REJECT" ? rejectionReason : undefined,
+          };
+          if (decision === "APPROVE" && document.plate === candidate.plate && document.type === candidate.type && document.isCurrent !== false) {
+            return { ...document, isCurrent: false, processStatus: "NONE" };
+          }
+          return document;
+        }),
+        renewals: current.renewals.map((renewal) => renewal.newDocumentId === documentId ? {
+          ...renewal,
+          status: decision === "APPROVE" ? "COMPLETED" : "REJECTED",
+          step: decision === "APPROVE" ? `Nueva vigencia aprobada por ${reviewerName}` : `Rechazada por ${reviewerName}: ${rejectionReason}`,
+        } : renewal),
+      }));
+      return true;
     },
     resetDemo() {
       setWorkspace(cloneSeed());

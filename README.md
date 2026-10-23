@@ -36,7 +36,7 @@ npm install
 npm run panel
 ```
 
-Abre `http://127.0.0.1:3000/panel`. Es una aplicación de desarrollo separada y enlazada únicamente a la interfaz local. Permite registrar vehículos y documentos, filtrar expedientes, comprobar vigencias con distintas fechas de análisis, preparar renovaciones y editar propietarios o conductores. Todos esos cambios permanecen exclusivamente en el `localStorage` del navegador. No necesita `.env`, credenciales, migraciones ni seed y no expone acciones de escritura de la aplicación real.
+Abre `http://127.0.0.1:3000/panel`. Es una aplicación de desarrollo separada y enlazada únicamente a la interfaz local. Permite registrar vehículos y documentos, cambiar manualmente el estado operativo, filtrar expedientes, comprobar vigencias con distintas fechas de análisis y completar una renovación en dos etapas (registro y aprobación independiente). Al aprobar una renovación, la versión anterior queda histórica y el conteo de alertas comienza desde el nuevo vencimiento. También permite editar propietarios o conductores. Todos esos cambios permanecen exclusivamente en el `localStorage` del navegador. No necesita `.env`, credenciales, migraciones ni seed y no expone acciones de escritura de la aplicación real.
 
 No uses todavía información personal sensible ni documentos privados: el panel local sirve para validar la experiencia y las reglas, pero aún no cuenta con la autenticación y el almacenamiento privado del entorno operativo.
 

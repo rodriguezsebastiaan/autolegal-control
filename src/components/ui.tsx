@@ -61,6 +61,7 @@ const badgeStyles: Record<string, string> = {
   ACTIVE: "bg-emerald-50 text-emerald-700 ring-emerald-200",
   VERIFIED: "bg-emerald-50 text-emerald-700 ring-emerald-200",
   VIGENTE: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  MAINTENANCE: "bg-amber-50 text-amber-800 ring-amber-200",
   INACTIVE: "bg-slate-100 text-slate-600 ring-slate-200",
   PENDING: "bg-amber-50 text-amber-800 ring-amber-200",
   PENDIENTE_VERIFICACION: "bg-amber-50 text-amber-800 ring-amber-200",
