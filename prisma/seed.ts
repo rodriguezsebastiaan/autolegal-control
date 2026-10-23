@@ -3,7 +3,7 @@ import { PrismaClient, RoleCode, type DocumentType, type VehicleCategory } from 
 import { addCivilDays, bogotaToday, parseCivilDate } from "../src/lib/dates";
 
 const prisma = new PrismaClient();
-const categoryNames = ["Busetas urbanas", "Busetas gerencia", "Camperos", "Kias", "Taxis", "Buses intermunicipales"];
+const categoryNames = ["Busetas urbanas", "Busetas gerencia", "Camperos", "Kias", "Taxis"];
 const documentTypes = [
   ["SOAT", "SOAT", true],
   ["Revisión técnico-mecánica", "RTM", true],

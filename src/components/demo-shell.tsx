@@ -4,10 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
-  BarChart3, BellRing, Building2, CarFront, ChevronRight, FileCheck2, FolderCog,
+  BarChart3, BellRing, CarFront, ChevronRight, FileCheck2, FolderCog,
   LayoutDashboard, Menu, RefreshCcw, Settings, ShieldCheck, UserRound, UsersRound, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useDemoStore } from "./demo-store";
 
 const demoLinks = [
   { href: "/demo", label: "Resumen ejecutivo", icon: LayoutDashboard },
@@ -17,7 +18,6 @@ const demoLinks = [
   { href: "/demo/alertas", label: "Centro de alertas", icon: BellRing },
   { href: "/demo/renovaciones", label: "Renovaciones", icon: RefreshCcw },
   { href: "/demo/propietarios", label: "Propietarios", icon: UsersRound },
-  { href: "/demo/empresas", label: "Empresas", icon: Building2 },
   { href: "/demo/conductores", label: "Conductores", icon: UserRound },
   { href: "/demo/reportes", label: "Reportes", icon: BarChart3 },
   { href: "/demo/configuracion", label: "Configuración", icon: Settings },
@@ -33,7 +33,7 @@ function DemoSidebar({ onNavigate }: { onNavigate?: () => void }) {
       </div>
       <div className="mt-4 rounded-xl border border-amber-300/25 bg-amber-300/10 px-3 py-2.5">
         <p className="text-xs font-black text-amber-200">ENTORNO DEMO LOCAL</p>
-        <p className="mt-1 text-[0.68rem] leading-4 text-amber-100/75">Datos ficticios · Solo lectura</p>
+        <p className="mt-1 text-[0.68rem] leading-4 text-amber-100/75">Datos ficticios · Cambios solo en este navegador</p>
       </div>
     </div>
     <nav aria-label="Módulos de demostración" className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
@@ -48,7 +48,7 @@ function DemoSidebar({ onNavigate }: { onNavigate?: () => void }) {
     <div className="border-t border-white/10 p-4">
       <div className="flex items-center gap-3 rounded-xl bg-white/5 px-3 py-3">
         <span className="grid h-9 w-9 place-items-center rounded-full bg-teal-400/15 text-sm font-black text-teal-200">AD</span>
-        <div className="min-w-0"><p className="truncate text-sm font-bold">Analista Demo</p><p className="text-xs text-slate-400">Navegación sin persistencia</p></div>
+        <div className="min-w-0"><p className="truncate text-sm font-bold">Analista Demo</p><p className="text-xs text-slate-400">Persistencia local temporal</p></div>
       </div>
     </div>
   </div>;
@@ -56,6 +56,7 @@ function DemoSidebar({ onNavigate }: { onNavigate?: () => void }) {
 
 export function DemoShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  const { resetDemo } = useDemoStore();
   return <div className="min-h-screen">
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 lg:block"><DemoSidebar/></aside>
     {open && <div className="fixed inset-0 z-40 lg:hidden">
@@ -66,7 +67,8 @@ export function DemoShell({ children }: { children: React.ReactNode }) {
       <div className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-slate-200/80 bg-white/90 px-4 backdrop-blur-lg sm:px-6 lg:px-8">
         <button aria-label="Abrir menú" onClick={() => setOpen(true)} className="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-700 lg:hidden"><Menu size={19}/></button>
         <div><p className="text-xs font-black uppercase tracking-[0.13em] text-teal-700">Autolegal · DEMO</p><p className="hidden text-xs text-slate-500 sm:block">Evaluación visual y funcional sin base de datos</p></div>
-        <span className="ml-auto inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-800 ring-1 ring-amber-200"><span className="h-2 w-2 rounded-full bg-amber-500"/>Solo lectura</span>
+        <button onClick={() => { if (window.confirm("¿Restaurar todos los datos ficticios de la demostración?")) resetDemo(); }} className="ml-auto hidden rounded-lg px-3 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-100 sm:block">Restaurar datos</button>
+        <span className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-800 ring-1 ring-amber-200"><span className="h-2 w-2 rounded-full bg-amber-500"/>Modo DEMO local</span>
       </div>
       <div className="p-4 sm:p-6 lg:p-8">{children}</div>
     </main>

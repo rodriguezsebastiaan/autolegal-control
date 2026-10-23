@@ -9,7 +9,7 @@ Plataforma empresarial de ConexaCod para Autolegal destinada a centralizar la fl
 - Aislamiento por organización y modo demostración identificado.
 - Dashboard calculado desde PostgreSQL, sin indicadores codificados.
 - CRUD de vehículos, desactivación, filtros y paginación del servidor.
-- Categorías internas administrables y seis categorías iniciales.
+- Categorías internas administrables y cinco categorías iniciales definidas por Autolegal.
 - Propietarios, empresas transportadoras y conductores normalizados.
 - Historial de propietario y afiliación empresarial.
 - Catálogo y registro documental con verificación, versiones y vigencia calculada.
@@ -36,7 +36,7 @@ npm install
 npm run demo
 ```
 
-Abre `http://127.0.0.1:3000/demo`. La demostración es una aplicación de desarrollo separada, enlazada únicamente a la interfaz local, con datos ficticios marcados como `DEMO` y sin acciones de escritura. No necesita `.env`, credenciales, migraciones ni seed.
+Abre `http://127.0.0.1:3000/demo`. La demostración es una aplicación de desarrollo separada, enlazada únicamente a la interfaz local, con datos ficticios marcados como `DEMO`. Permite registrar vehículos y documentos, filtrar expedientes, simular renovaciones y editar propietarios o conductores; todos esos cambios permanecen exclusivamente en el `localStorage` del navegador. No necesita `.env`, credenciales, migraciones ni seed y no expone acciones de escritura de la aplicación real.
 
 El build productivo principal no contiene las rutas del proyecto `demo-app`. El guard adicional `AUTOLEGAL_LOCAL_DEMO=enabled` solo lo establece `npm run demo` y además exige `NODE_ENV=development`.
 
