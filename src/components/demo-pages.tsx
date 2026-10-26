@@ -28,7 +28,7 @@ function DemoIntro({ title, description, eyebrow, action }: { title: string; des
 }
 
 function SearchField({ value, onChange, placeholder, label = "Buscar" }: { value: string; onChange: (value: string) => void; placeholder: string; label?: string }) {
-  return <label className="block min-w-0 flex-[1_1_22rem]"><span className="label">{label}</span><span className="relative block"><Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={17}/><input className="field pl-10" value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder}/></span></label>;
+  return <label className="block min-w-0 flex-[1_1_22rem]"><span className="label">{label}</span><span className="relative block"><Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={17}/><input className="field field-with-leading-icon" value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder}/></span></label>;
 }
 
 function Toolbar({ children }: { children: React.ReactNode }) {
@@ -36,7 +36,7 @@ function Toolbar({ children }: { children: React.ReactNode }) {
 }
 
 function FilterSelect({ label, value, onChange, children, disabled = false }: { label: string; value: string; onChange: (value: string) => void; children: React.ReactNode; disabled?: boolean }) {
-  return <label className="block w-full sm:w-56"><span className="label">{label}</span><span className="relative block"><Filter className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16}/><select className="field pl-9 pr-9" value={value} onChange={(event) => onChange(event.target.value)} disabled={disabled}>{children}</select></span></label>;
+  return <label className="block w-full sm:w-56"><span className="label">{label}</span><span className="relative block"><Filter className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16}/><select className="field field-with-leading-icon" value={value} onChange={(event) => onChange(event.target.value)} disabled={disabled}>{children}</select></span></label>;
 }
 
 function ResultCount({ children }: { children: React.ReactNode }) {

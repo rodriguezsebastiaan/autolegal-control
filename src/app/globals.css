@@ -49,6 +49,8 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .field:disabled { cursor: not-allowed; background: #f1f5f7; color: #64748b; opacity: 1; }
 .field::placeholder { color: #94a3b8; }
 input.field, select.field { height: 2.75rem; }
+.field.field-with-leading-icon { padding-left: 2.5rem; }
+select.field.field-with-leading-icon { padding-right: 2.25rem; }
 .field:focus {
   border-color: var(--teal-500);
   box-shadow: 0 0 0 3px rgba(19, 184, 166, 0.13);

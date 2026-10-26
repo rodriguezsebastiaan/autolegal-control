@@ -154,15 +154,18 @@ test("las barras de filtros mantienen alineación y no desbordan", async ({ page
     await expect(toolbar).toBeVisible();
     const layout = await toolbar.evaluate((element) => {
       const controls = [...element.querySelectorAll("input, select")].map((control) => control.getBoundingClientRect());
+      const leadingIconFields = [...element.querySelectorAll<HTMLElement>(".field-with-leading-icon")];
       const bounds = element.getBoundingClientRect();
       return {
         overflows: element.scrollWidth > element.clientWidth + 1,
         controlsInside: controls.every((control) => control.left >= bounds.left - 1 && control.right <= bounds.right + 1),
         heights: controls.map((control) => Math.round(control.height)),
+        iconsHaveSpace: leadingIconFields.every((field) => Number.parseFloat(getComputedStyle(field).paddingLeft) >= 36),
       };
     });
     expect(layout.overflows, `${route} no debe tener desbordamiento horizontal`).toBe(false);
     expect(layout.controlsInside, `${route} debe contener todos los campos`).toBe(true);
     expect(new Set(layout.heights).size, `${route} debe usar controles de igual altura`).toBeLessThanOrEqual(1);
+    expect(layout.iconsHaveSpace, `${route} debe separar los íconos del texto`).toBe(true);
   }
 });
